@@ -1,0 +1,25 @@
+# === Only keep HW4/src and HW4/pom.xml ===
+
+# Ignore everything by default
+/*
+
+# But keep .gitignore itself
+!.gitignore
+
+# Keep HW4 folder structure
+!HW4/
+# Inside HW4, keep src/ and pom.xml only
+!HW4/src/
+!HW4/pom.xml
+
+# Ignore HW4/target and other generated files
+HW4/target/
+HW4/.mvn/
+HW4/.idea/
+
+# Ignore IntelliJ and build artifacts globally
+.idea/
+out/
+*.iml
+*.class
+*.log
