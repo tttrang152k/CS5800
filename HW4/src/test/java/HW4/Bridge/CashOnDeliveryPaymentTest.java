@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class CashOnDeliveryPaymentTest {
     @Test
-    void notifyCustomer_BitcoinPaymentNotification_ViaChannel() {
+    void notifyCustomer_CashPaymentNotification_ViaChannel() {
         HelperChannel channel =  new HelperChannel();
         PaymentNotification noti = new CashOnDeliveryPayment(channel, "Anna", "OR-4284");
         noti.notifyCustomer();

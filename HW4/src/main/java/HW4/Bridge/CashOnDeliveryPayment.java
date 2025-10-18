@@ -11,6 +11,4 @@ public class CashOnDeliveryPayment extends PaymentNotification {
     public void notifyCustomer(){
         channel.send(customerName, "[CASH] Payment on delivery for order " + orderID + " sent!");
     }
-
-
 }

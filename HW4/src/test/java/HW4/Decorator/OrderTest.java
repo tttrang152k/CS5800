@@ -39,7 +39,7 @@ class OrderTest {
     }
 
     @Test
-    public void orderDescription(){
+    public void orderToppingDescription(){
         Order order = new Order();
         FoodItem item1 = new Cheese(new Ketchup(new Burger()));
         FoodItem item2 = new Onion(new Fries());
@@ -52,5 +52,4 @@ class OrderTest {
         assertTrue(orderDescription.contains("Burger + Ketchup + Cheese"));
         assertTrue(orderDescription.contains("Fries + Onions"));
     }
-
 }

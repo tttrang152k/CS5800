@@ -29,5 +29,4 @@ public class PushChannelTest {
         assertTrue(consoleOutput.contains("[Push] notification sending to: ios123"));
         assertTrue(consoleOutput.contains("[Push] notification message: Push notification!"));
     }
-
 }
