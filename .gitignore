@@ -17,6 +17,19 @@ HW4/target/
 HW4/.mvn/
 HW4/.idea/
 
+# Keep Startup folder structure
+!Startup
+
+# Inside Startup, keep test and pom.xml only (for now)
+!Startup/src/test/
+!Startup/pom.xml
+
+#Ignore Startup/target and other generated files
+Startup/target/
+Startup/src/main/
+Startup/.mvn/
+Startup/.idea/
+
 # Ignore IntelliJ and build artifacts globally
 .idea/
 out/
