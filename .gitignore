@@ -17,6 +17,17 @@ HW4/target/
 HW4/.mvn/
 HW4/.idea/
 
+# Keep HW5 folder structure
+!HW5/
+# Inside HW5, keep src/ and pom.xml only
+!HW5/src/
+!HW5/pom.xml
+
+# Ignore HW4/target and other generated files
+HW5/target/
+HW5/.mvn/
+HW5/.idea/
+
 # Keep Startup folder structure
 !Startup
 

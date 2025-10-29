@@ -1,0 +1,5 @@
+H Arial black 14
+e Calibri red 14
+l Calibri blue 16
+l Arial red 16
+o Arial blue 12

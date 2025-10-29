@@ -1,0 +1,16 @@
+H: Verdana | black | 14
+e: Verdana | red | 14
+l: Calibri | red | 16
+l: Verdana | blue | 14
+o: Calibri | blue | 14
+W: Calibri | blue | 12
+o: Verdana | blue | 12
+r: Verdana | red | 16
+l: Arial | blue | 14
+d: Arial | blue | 14
+C: Arial | red | 12
+S: Arial | red | 14
+5: Calibri | red | 16
+8: Calibri | black | 16
+0: Arial | blue | 16
+0: Calibri | black | 12
