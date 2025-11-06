@@ -27,6 +27,7 @@ HW4/.idea/
 HW5/target/
 HW5/.mvn/
 HW5/.idea/
+HW5/.DS_Store
 
 # Keep Startup folder structure
 !Startup
@@ -58,3 +59,4 @@ out/
 *.iml
 *.class
 *.log
+
