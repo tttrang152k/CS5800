@@ -23,7 +23,7 @@ HW4/.idea/
 !HW5/src/
 !HW5/pom.xml
 
-# Ignore HW4/target and other generated files
+# Ignore HW5/target and other generated files
 HW5/target/
 HW5/.mvn/
 HW5/.idea/
@@ -40,6 +40,17 @@ Startup/target/
 Startup/src/main/
 Startup/.mvn/
 Startup/.idea/
+
+# Keep Quiz4 folder structure
+!Quiz4
+# Inside Quiz4, keep src/main only
+!Quiz4/src/main/
+
+# Ignore Quiz4/target and other generated files
+Quiz4/target/
+Quiz4/.mvn/
+Quiz4/.idea/
+Quiz4/pom.xml
 
 # Ignore IntelliJ and build artifacts globally
 .idea/
