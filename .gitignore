@@ -53,6 +53,17 @@ Quiz4/.mvn/
 Quiz4/.idea/
 Quiz4/pom.xml
 
+# Keep HW4 folder structure
+!HW6/
+# Inside HW4, keep src/ and pom.xml only
+!HW6/src/
+!HW6/pom.xml
+
+# Ignore HW4/target and other generated files
+HW6/target/
+HW6/.mvn/
+HW6/.idea/
+
 # Ignore IntelliJ and build artifacts globally
 .idea/
 out/
