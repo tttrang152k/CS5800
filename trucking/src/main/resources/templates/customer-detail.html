@@ -1,0 +1,85 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="'Customer — ' + ${customerRef}">Customer</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
+        h2 { margin-bottom: 4px; }
+        .muted { color: #777; }
+        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px 8px; text-align: left; }
+        th { background: #fafafa; position: sticky; top: 0; }
+        a.btn { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; text-decoration: none; }
+        a.rowlink { text-decoration: none; color: #0a58ca; }
+        a.rowlink:hover { text-decoration: underline; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <h2 th:text="'Customer — ' + ${customerRef}">Customer — ACME</h2>
+    <a class="btn" href="/loads">← Back to Loads</a>
+</div>
+
+<h3>Loads</h3>
+<table>
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>Rate</th>
+        <th>Driver</th>
+        <th>Pickup</th>
+        <th>Delivery</th>
+        <th>Pickup Date</th>
+        <th>Delivery Date</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="l : ${loads}">
+        <td><a class="rowlink" th:href="@{'/loads/' + ${l.id}}" th:text="${l.id}">L-1</a></td>
+        <td th:text="${l.status}">Dispatched</td>
+        <td th:text="${#numbers.formatDecimal(l.rateAmount,1,'COMMA',2,'POINT')}">0.00</td>
+        <td th:text="${l.driverId}">EMP-42</td>
+        <td th:text="${l.pickupAddress}">123 Pickup St</td>
+        <td th:text="${l.deliveryAddress}">456 Delivery Ave</td>
+        <td th:text="${l.pickupDate}">YYYY-MM-DD</td>
+        <td th:text="${l.deliveryDate}">YYYY-MM-DD</td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(loads)}">
+        <td colspan="8" class="muted">No loads for this customer.</td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Invoices</h3>
+<table>
+    <thead>
+    <tr>
+        <th>Invoice</th>
+        <th>Load</th>
+        <th>Issued</th>
+        <th>Status</th>
+        <th style="text-align:right;">Total</th>
+        <th>Action</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="i : ${invoices}">
+        <td th:text="${i.id}">INV-000123</td>
+        <td><a class="rowlink" th:href="@{'/loads/' + ${i.loadId}}" th:text="${i.loadId}">L-101</a></td>
+        <td th:text="${i.issuedAt}">2025-10-07T10:15</td>
+        <td th:text="${i.status}">Sent</td>
+        <td style="text-align:right;" th:text="${#numbers.formatDecimal(i.total,1,'COMMA',2,'POINT')}">0.00</td>
+        <td><a class="btn" th:href="@{'/invoices/' + ${i.id} + '/pay'}">View Invoice</a></td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(invoices)}">
+        <td colspan="6" class="muted">No sent invoices for this customer.</td>
+    </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Truck Loads</title>
+    <style>
+        body { margin:0; background:#fafafa; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+        .container { max-width:1100px; margin:24px auto 56px; padding:0 16px; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        h2 { margin:0; }
+        .btn, a.btn, button.btn {
+            display:inline-flex; align-items:center; justify-content:center;
+            padding:8px 12px; border:1px solid #ddd; border-radius:8px;
+            background:#fff; color:#111; text-decoration:none;
+            font: inherit; line-height:1.2; text-align:center; cursor:pointer;
+            min-height:32px;
+        }
+        .btn.small, a.btn.small, button.btn.small { padding:6px 10px; min-height:30px; }
+        .btn:disabled, button.btn:disabled { opacity:.6; cursor:not-allowed; }
+        button.btn { -webkit-appearance:none; appearance:none; background:#fff; border:1px solid #ddd; }
+        .muted { color:#777; }
+        table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #eee; border-radius:10px; overflow:hidden; }
+        thead th { background:#f8f9fa; position:sticky; top:0; z-index:1; }
+        th, td { padding:10px 8px; border-bottom:1px solid #f0f0f0; text-align:left; }
+        tbody tr:hover { background:#fbfbfb; }
+        .num { text-align:right; white-space:nowrap; }
+        .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        a.rowlink { text-decoration:none; color:#0a58ca; }
+        a.rowlink:hover { text-decoration:underline; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="toolbar">
+        <h2>Truck Loads</h2>
+        <a class="btn" href="/invoices">Invoices</a>
+    </div>
+
+    <div>
+        <a class="btn" href="/loads/new">+ Create New Load</a>
+    </div>
+
+    <table>
+        <thead>
+        <tr>
+            <th style="width:90px;">ID</th>
+            <th>Customer Name</th>
+            <th>Status</th>
+            <th class="num" style="width:120px;">Rate Amount</th>
+            <th style="width:110px;">Driver</th>
+            <th>Pickup Address</th>
+            <th>Delivery Address</th>
+            <th style="width:110px;">Pickup Date</th>
+            <th style="width:110px;">Delivery Date</th>
+            <th style="width:110px;">Documents</th>
+            <th style="width:220px;">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${rows}">
+            <td>
+                <a class="rowlink" th:href="@{'/loads/' + ${row.id}}" th:text="${row.id}">L-1</a>
+            </td>
+
+            <td>
+                <a class="rowlink" th:href="@{'/customers/' + ${row.customerName}}"
+                   th:text="${row.customerName}">Customer ACME</a>
+            </td>
+
+            <td th:text="${row.status}">Dispatched</td>
+
+            <td class="num">
+                <span>$</span>
+                <span th:text="${#numbers.formatDecimal(row.rateAmount, 1, 'COMMA', 2, 'POINT')}">0.00</span>
+            </td>
+
+            <td th:text="${row.driver}">EMP-42</td>
+            <td th:text="${row.pickupAddress}">123 Pickup St</td>
+            <td th:text="${row.deliveryAddress}">456 Delivery Ave</td>
+            <td th:text="${row.pickupDate}">2025-10-01</td>
+            <td th:text="${row.deliveryDate}">2025-10-05</td>
+
+            <td>
+                <a th:if="${row.documentUrl != null}" th:href="${row.documentUrl}" class="btn small" target="_blank">View</a>
+                <span th:if="${row.documentUrl == null}" class="muted">—</span>
+            </td>
+
+            <td>
+                <div class="actions">
+                    <form th:if="${row.status == 'Delivered' and !row.invoiced}"
+                          th:action="@{'/invoices/from-load/' + ${row.id}}"
+                          method="post">
+                        <button type="submit" class="btn small">Create Invoice</button>
+                    </form>
+
+                    <a class="btn small"
+                       th:if="${row.status == 'Delivered' and row.invoiced}"
+                       th:href="@{'/invoices/' + ${row.invoiceId} + '/pay'}">View Invoice</a>
+
+                    <span th:if="${row.status != 'Delivered'}" class="muted">—</span>
+                </div>
+            </td>
+        </tr>
+
+        <tr th:if="${#lists.isEmpty(rows)}">
+            <td colspan="11" class="muted" style="text-align:center; padding:16px;">
+                No loads yet.
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+</div>
+</body>
+</html>

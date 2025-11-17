@@ -1,0 +1,69 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <title>Make a Payment</title>
+    <style>
+        body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; padding:24px; }
+        .card { border:1px solid #eee; border-radius:8px; padding:16px; margin-bottom:16px; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        .btn, a.btn, button.btn {
+            display:inline-flex; align-items:center; justify-content:center;
+            padding:8px 12px; border:1px solid #ddd; border-radius:8px;
+            background:#fff; color:#111; text-decoration:none; cursor:pointer;
+            font:inherit; line-height:1.2; min-height:32px;
+        }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
+        .num { text-align:right; }
+        .muted { color:#777; }
+        label { display:flex; gap:8px; align-items:center; margin:8px 0; }
+        input, select, button { padding:8px; border:1px solid #ddd; border-radius:6px; }
+        .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    </style>
+</head>
+<body>
+<div class="toolbar">
+    <h2>Make a Payment</h2>
+    <a class="btn" href="/invoices">← Back to Invoices</a>
+</div>
+
+<div class="card">
+    <h3 th:text="${'Invoice ' + invoice.id}">Invoice INV-000123</h3>
+    <table>
+        <tr><th>Load</th><td th:text="${invoice.loadId}">L-101</td></tr>
+        <tr><th>Customer</th><td th:text="${invoice.customerRef}">Acme</td></tr>
+        <tr><th>Issued</th><td th:text="${invoice.issuedAt}">2025-10-07T10:15</td></tr>
+        <tr><th>Status</th><td th:text="${invoice.status}">Sent</td></tr>
+        <tr><th class="num">Subtotal</th><td class="num" th:text="${#numbers.formatDecimal(invoice.subtotal,1,'COMMA',2,'POINT')}">0.00</td></tr>
+        <tr><th class="num">Tax</th><td class="num" th:text="${#numbers.formatDecimal(invoice.tax,1,'COMMA',2,'POINT')}">0.00</td></tr>
+        <tr><th class="num">Total</th><td class="num" th:text="${#numbers.formatDecimal(invoice.total,1,'COMMA',2,'POINT')}">0.00</td></tr>
+        <tr><th class="num">Paid</th><td class="num" th:text="${#numbers.formatDecimal(paid,1,'COMMA',2,'POINT')}">0.00</td></tr>
+        <tr><th class="num">Balance</th><td class="num" th:text="${#numbers.formatDecimal(balance,1,'COMMA',2,'POINT')}">0.00</td></tr>
+    </table>
+</div>
+
+<p th:if="${error}" th:text="${error}" style="color:#b00020;"></p>
+
+<div class="card">
+    <h3>Payment</h3>
+    <form th:action="@{'/invoices/' + ${invoice.id} + '/pay'}" method="post">
+        <div class="row">
+            <label>Method
+                <select name="method">
+                    <option th:each="m : ${methods}" th:value="${m}" th:text="${m}">CASH</option>
+                </select>
+            </label>
+            <label>Amount
+                <input type="number" step="0.01" name="amount" th:attr="value=${balance}" required/>
+            </label>
+        </div>
+        <div style="margin-top:12px;">
+            <button type="submit" th:disabled="${balance <= 0}">Pay Now</button>
+            <span class="muted" th:if="${balance <= 0}">Invoice already paid.</span>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>

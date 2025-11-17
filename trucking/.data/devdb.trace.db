@@ -1,0 +1,3 @@
+2025-11-16 17:41:07.469698-08:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "delete from loads where[*]"; expected "INTERSECTS (, NOT, EXISTS, UNIQUE, INTERSECTS"; SQL statement:
+delete from loads where [42001-232]

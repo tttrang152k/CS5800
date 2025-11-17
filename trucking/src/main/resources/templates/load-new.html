@@ -1,0 +1,83 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Book a Load</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
+        form { max-width: 960px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+        label { display: flex; flex-direction: column; gap: 6px; }
+        input, select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+        .actions { margin-top: 16px; display: flex; gap: 8px; }
+    </style>
+</head>
+<body>
+<h2>Book a Load</h2>
+
+<form th:action="@{/loads}" th:object="${form}" method="post">
+    <div class="row">
+        <label>ID (optional)
+            <input th:field="*{id}" placeholder="auto if blank"/>
+        </label>
+        <label>Status
+            <select th:field="*{status}">
+                <option value="Requested">Requested</option>
+                <option value="Assigned">Assigned</option>
+                <option value="Dispatched">Dispatched</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="row">
+        <label>Customer / Reference
+            <input th:field="*{referenceNo}" placeholder="Acme Logistics"/>
+        </label>
+        <label>Rate Amount
+            <input type="number" step="0.01" th:field="*{rateAmount}" placeholder="1500.00"/>
+        </label>
+    </div>
+
+    <div class="row">
+        <label>Driver ID
+            <input th:field="*{driverId}" placeholder="EMP-42"/>
+        </label>
+        <label>Trailer ID
+            <input th:field="*{trailerId}" placeholder="TRL-77"/>
+        </label>
+    </div>
+
+    <div class="row">
+        <label>Pickup Address
+            <input th:field="*{pickupAddress}" placeholder="123 Pickup St, LA, CA"/>
+        </label>
+        <label>Delivery Address
+            <input th:field="*{deliveryAddress}" placeholder="456 Delivery Ave, LV, NV"/>
+        </label>
+    </div>
+
+    <div class="row">
+        <label>Pickup Date
+            <input type="date" th:field="*{pickupDate}"/>
+        </label>
+        <label>Delivery Date
+            <input type="date" th:field="*{deliveryDate}"/>
+        </label>
+    </div>
+
+    <div class="row">
+        <label>Tracking ID
+            <input th:field="*{trackingId}" placeholder="TRK-123"/>
+        </label>
+        <label>Rate Confirmation URL
+            <input th:field="*{rateConfirmationRef}" placeholder="https://.../rc.pdf"/>
+        </label>
+    </div>
+
+    <div class="actions">
+        <button type="submit">Create Load</button>
+        <a href="/loads">Cancel</a>
+    </div>
+</form>
+</body>
+</html>

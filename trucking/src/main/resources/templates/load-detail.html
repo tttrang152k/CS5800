@@ -1,0 +1,121 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--<head><meta charset="utf-8"/><title>Load Detail</title></head>-->
+<head>
+    <meta charset="utf-8"/>
+    <title th:text="'Load ' + ${load.id}">Load Detail</title>
+    <style>
+        body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#fafafa; }
+        .container { max-width: 980px; margin: 24px auto 56px; padding: 0 16px; }
+        .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+        h2 { margin:0; }
+        .btn { display:inline-block; padding:8px 12px; border:1px solid #ddd; border-radius:8px; text-decoration:none; background:#fff; color:#111; }
+        .btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+        .btn:disabled { opacity:.6; cursor:not-allowed; }
+        .row { display:grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 900px) { .row { grid-template-columns: 1fr 1fr; } }
+        .card { background:#fff; border:1px solid #eee; border-radius:10px; padding:14px; }
+        .card h3 { margin: 0 0 10px 0; font-size:1.05rem; }
+        table.kv { width:100%; border-collapse:collapse; }
+        table.kv th, table.kv td { padding:8px; border-bottom:1px solid #f0f0f0; text-align:left; vertical-align:top; }
+        table.kv th { width:180px; color:#555; background:#fcfcfc; }
+        table.grid { width:100%; border-collapse:collapse; }
+        table.grid th, table.grid td { padding:8px; border-bottom:1px solid #f0f0f0; text-align:left; }
+        table.grid th { background:#fcfcfc; }
+        .alert { margin:12px 0; padding:10px 12px; border:1px solid #c7f3d4; background:#f2fff6; border-radius:8px; color:#0f5132; }
+        .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        select, input[type="url"] { padding:8px; border:1px solid #ddd; border-radius:8px; background:#fff; }
+        .footer { margin-top:18px; display:flex; gap:10px; }
+    </style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<div class="toolbar">
+    <h2 th:text="'Load ' + ${load.id}">Load L-100</h2>
+    <div class="controls">
+        <a class="btn" href="/loads">← Back to Loads</a>
+        <a class="btn" href="/invoices">Invoices</a>
+    </div>
+</div>
+<!-- Toast -->
+<p th:if="${toast}" class="alert" th:text="${toast}">Saved.</p>
+
+<div class="row">
+    <div class="card">
+        <h3>Overview</h3>
+        <table class="kv">
+            <tr><th>Customer</th><td th:text="${load.referenceNo}">ACME</td></tr>
+            <tr><th>Status</th><td th:text="${load.status}">Dispatched</td></tr>
+            <tr>
+                <th>Rate</th>
+                <td th:text="${'$' + #numbers.formatDecimal(load.rateAmount, 1, 'COMMA', 2, 'POINT')}">$0.00</td>
+            </tr>
+            <tr><th>Driver</th><td th:text="${load.driverId}">EMP-42</td></tr>
+            <tr><th>Pickup</th><td th:text="${load.pickupAddress}">N/A</td></tr>
+            <tr><th>Delivery</th><td th:text="${load.deliveryAddress}">N/A</td></tr>
+            <tr><th>Pickup Date</th><td th:text="${load.pickupDate}">YYYY-MM-DD</td></tr>
+            <tr><th>Delivery Date</th><td th:text="${load.deliveryDate}">YYYY-MM-DD</td></tr>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Actions</h3>
+        <form th:action="@{'/loads/' + ${load.id} + '/status'}" method="post">
+            <div class="controls" style="margin-bottom:8px;">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option th:selected="${load.status=='Requested'}">Requested</option>
+                    <option th:selected="${load.status=='Assigned'}">Assigned</option>
+                    <option th:selected="${load.status=='Dispatched'}">Dispatched</option>
+                    <option th:selected="${load.status=='Delivered'}">Delivered</option>
+                    <option th:selected="${load.status=='Canceled'}">Canceled</option>
+                </select>
+                <button type="submit" class="btn primary">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Documents -->
+<div class="row" style="margin-top:16px;">
+    <div class="card">
+        <h3>Documents</h3>
+        <table class="grid">
+            <thead>
+            <tr><th>ID</th><th>Type</th><th>Status</th><th>Link</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="d : ${documents}">
+                <td th:text="${d.id}">DOC-1</td>
+                <td th:text="${d.type}">POD</td>
+                <td th:text="${d.status}">Uploaded</td>
+                <td><a class="btn" th:href="${d.downloadUri()}" target="_blank">View</a></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(documents)}">
+                <td colspan="4" style="color:#666;">No documents yet.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Upload Document</h3>
+        <form th:action="@{'/loads/' + ${load.id} + '/documents/upload'}" method="post">
+            <div class="controls" style="margin-bottom:8px;">
+                <label for="type">Type</label>
+                <select id="type" name="type">
+                    <option value="BOL">BOL</option>
+                    <option value="POD">POD</option>
+                </select>
+                <label for="url">URL</label>
+                <input id="url" type="url" name="url" placeholder="https://example.com/file.pdf" required/>
+                <button type="submit" class="btn primary">Upload</button>
+            </div>
+            <div style="color:#666; font-size:.9rem;">Only public links are supported in this demo.</div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

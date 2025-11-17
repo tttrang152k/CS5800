@@ -53,16 +53,28 @@ Quiz4/.mvn/
 Quiz4/.idea/
 Quiz4/pom.xml
 
-# Keep HW4 folder structure
+# Keep HW6 folder structure
 !HW6/
-# Inside HW4, keep src/ and pom.xml only
+# Inside HW6, keep src/ and pom.xml only
 !HW6/src/
 !HW6/pom.xml
 
-# Ignore HW4/target and other generated files
+# Ignore HW6/target and other generated files
 HW6/target/
 HW6/.mvn/
 HW6/.idea/
+
+# Keep trucking folder structure
+!trucking/
+# Inside trucking, keep src/ and pom.xml only
+!trucking/src/
+!trucking/.data
+!trucking/pom.xml
+
+# Ignore trucking/target and other generated files
+trucking/target/
+trucking/.mvn/
+trucking/.idea/
 
 # Ignore IntelliJ and build artifacts globally
 .idea/
