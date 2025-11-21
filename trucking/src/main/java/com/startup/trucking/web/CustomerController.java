@@ -2,6 +2,7 @@ package com.startup.trucking.web;
 
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.persistence.Invoice;
+import com.startup.trucking.persistence.NotificationRepository;
 import com.startup.trucking.service.InvoiceService;
 import com.startup.trucking.service.LoadService;
 import org.springframework.stereotype.Controller;
@@ -16,10 +17,12 @@ public class CustomerController {
 
     private final LoadService loadService;
     private final InvoiceService invoiceService;
+    private final NotificationRepository notifications;
 
-    public CustomerController(LoadService loadService, InvoiceService invoiceService) {
+    public CustomerController(LoadService loadService, InvoiceService invoiceService, NotificationRepository notifications) {
         this.loadService = loadService;
         this.invoiceService = invoiceService;
+        this.notifications = notifications;
     }
 
     @GetMapping("/{customerRef}")
@@ -37,6 +40,10 @@ public class CustomerController {
         model.addAttribute("customerRef", customerRef);
         model.addAttribute("loads", loads);
         model.addAttribute("invoices", invoices);
+        model.addAttribute("customerRef", customerRef);
+        model.addAttribute("notifications", notifications.findByCustomerRefOrderByCreatedAtDesc(customerRef));
+
         return "customer-detail";
     }
+
 }

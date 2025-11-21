@@ -1,9 +1,11 @@
 package com.startup.trucking.web;
 
 import com.startup.trucking.domain.Load;
+import com.startup.trucking.notify.ChannelType;
 import com.startup.trucking.service.InvoiceService;
 import com.startup.trucking.service.LoadService;
 import com.startup.trucking.persistence.Invoice;
+import com.startup.trucking.service.NotificationService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -24,11 +26,13 @@ public class InvoiceController {
     private final InvoiceService billing;
     private final LoadService loads;
     private final PaymentService paymentService;
+    private final NotificationService notificationService;
 
-    public InvoiceController(InvoiceService billing, LoadService loads, PaymentService paymentService) {
+    public InvoiceController(InvoiceService billing, LoadService loads, PaymentService paymentService, NotificationService notificationService) {
         this.billing = billing;
         this.loads = loads;
         this.paymentService = paymentService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -54,23 +58,76 @@ public class InvoiceController {
         return "invoices";
     }
 
-    // Create from a Delivered load
+
+    // Create from a Delivered load + optional notify
     @PostMapping("/from-load/{loadId}")
-    public String createFromLoad(@PathVariable String loadId, RedirectAttributes ra) {
+    public String createFromLoad(@PathVariable String loadId,
+                                 @RequestParam(value = "channel", required = false) String channel,
+                                 @RequestParam(value = "recipient", required = false) String recipient,
+                                 RedirectAttributes ra) {
         var inv = billing.createFromLoad(loadId);
-        ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created for load " + loadId);
+
+        // Optional notify on create
+        if (recipient != null && !recipient.isBlank() && channel != null && !channel.isBlank()) {
+            try {
+                notificationService.sendInvoiceCreated(
+                        ChannelType.valueOf(channel),
+                        recipient,
+                        inv.getCustomerRef(),
+                        inv.getId(),
+                        inv.getLoadId(),
+                        inv.getTotal().toPlainString()
+                );
+                ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created and customer notified.");
+            } catch (IllegalArgumentException ex) {
+                ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created (notification skipped: " + ex.getMessage() + ").");
+            }
+        } else {
+            ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created.");
+        }
         return "redirect:/invoices";
     }
 
-    // Manual/Direct create
+    // Create via the top form on /invoices
+    // If amount is empty -> create from load's rate; else -> create manual with amount
     @PostMapping
-    public String createManual(@RequestParam String loadId,
-                               @RequestParam float amount,
-                               RedirectAttributes ra) {
-        var inv = billing.createManual(loadId, amount);
-        ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created.");
+    public String createManualOrFromLoad(@RequestParam String loadId,
+                                         @RequestParam(value = "amount", required = false) java.math.BigDecimal amount,
+                                         @RequestParam(value = "channel", required = false) String channel,
+                                         @RequestParam(value = "recipient", required = false) String recipient,
+                                         RedirectAttributes ra) {
+
+        com.startup.trucking.persistence.Invoice inv;
+        if (amount == null) {
+            // No amount provided: use load's rate (aka "from load")
+            inv = billing.createFromLoad(loadId);
+        } else {
+            inv = billing.createManual(loadId, amount.floatValue());
+        }
+
+        // Optional notify on create
+        if (recipient != null && !recipient.isBlank() && channel != null && !channel.isBlank()) {
+            try {
+                notificationService.sendInvoiceCreated(
+                        ChannelType.valueOf(channel),
+                        recipient,
+                        inv.getCustomerRef(),
+                        inv.getId(),
+                        inv.getLoadId(),
+                        inv.getTotal().toPlainString()
+                );
+                ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created and customer notified.");
+            } catch (IllegalArgumentException ex) {
+                ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created (notification skipped: " + ex.getMessage() + ").");
+            }
+        } else {
+            ra.addFlashAttribute("toast", "Invoice " + inv.getId() + " created.");
+        }
+
         return "redirect:/invoices";
     }
+
+
 
     @PostMapping("/{id}/send")
     public String send(@PathVariable String id, RedirectAttributes ra) {
@@ -96,14 +153,41 @@ public class InvoiceController {
         return "invoice-pay";
     }
 
+
     @PostMapping("/{id}/pay")
     public String pay(@PathVariable String id,
                       @RequestParam String method,
                       @RequestParam BigDecimal amount,
+                      @RequestParam(value = "channel", required = false) String channel,
+                      @RequestParam(value = "recipient", required = false) String recipient,
                       RedirectAttributes ra) {
-        var p = paymentService.pay(id, PaymentMethod.valueOf(method), amount, "DEMO");
-        return "redirect:/invoices/" + id + "/pay/confirm?paymentId=" + p.getId();
+        // Record payment
+        var payment = paymentService.pay(id, PaymentMethod.valueOf(method), amount, "DEMO");
+
+        // Optional notify (Payment Received)
+        if (channel != null && !channel.isBlank() && recipient != null && !recipient.isBlank()) {
+            var inv = billing.get(id);
+            try {
+                notificationService.sendPaymentReceived(
+                        com.startup.trucking.notify.ChannelType.valueOf(channel),
+                        recipient,
+                        inv.getCustomerRef(),
+                        inv.getId(),
+                        amount.toPlainString(),
+                        method
+                );
+                ra.addFlashAttribute("toast", "Payment recorded and customer notified.");
+            } catch (IllegalArgumentException ex) {
+                // If channel enum fails etc., still proceed to confirmation
+                ra.addFlashAttribute("toast", "Payment recorded (notification skipped: " + ex.getMessage() + ").");
+            }
+        } else {
+            ra.addFlashAttribute("toast", "Payment recorded.");
+        }
+
+        return "redirect:/invoices/" + id + "/pay/confirm?paymentId=" + payment.getId();
     }
+
 
     @GetMapping("/{id}/pay/confirm")
     public String confirm(@PathVariable String id,

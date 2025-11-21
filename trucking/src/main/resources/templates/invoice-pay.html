@@ -58,11 +58,28 @@
                 <input type="number" step="0.01" name="amount" th:attr="value=${balance}" required/>
             </label>
         </div>
+
+        <div class="row" style="margin-top:8px;">
+            <label>Notify via
+                <select name="channel">
+                    <option value="">(No notification)</option>
+                    <option value="EMAIL">Email</option>
+                    <option value="SMS">SMS</option>
+                    <option value="PUSH">Push</option>
+                </select>
+            </label>
+            <label>Recipient
+                <input type="text" name="recipient" placeholder="email / phone / token"/>
+            </label>
+        </div>
+
         <div style="margin-top:12px;">
             <button type="submit" th:disabled="${balance <= 0}">Pay Now</button>
             <span class="muted" th:if="${balance <= 0}">Invoice already paid.</span>
         </div>
     </form>
+
+
 </div>
 
 </body>

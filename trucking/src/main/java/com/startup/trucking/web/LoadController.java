@@ -3,10 +3,12 @@ package com.startup.trucking.web;
 import com.startup.trucking.domain.Document;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.domain.LoadBuilder;
+import com.startup.trucking.notify.ChannelType;
 import com.startup.trucking.persistence.Invoice;
 import com.startup.trucking.service.DocumentService;
 import com.startup.trucking.service.InvoiceService;
 import com.startup.trucking.service.LoadService;
+import com.startup.trucking.service.NotificationService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -25,11 +27,13 @@ public class LoadController {
     private final LoadService loads;
     private final DocumentService docs;
     private final InvoiceService invoices;
+    private final NotificationService notificationService;
 
-    public LoadController(LoadService loads, DocumentService docs, InvoiceService invoices) {
+    public LoadController(LoadService loads, DocumentService docs, InvoiceService invoices, NotificationService notificationService) {
         this.loads = loads;
         this.docs = docs;
         this.invoices = invoices;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -103,6 +107,34 @@ public class LoadController {
                                RedirectAttributes ra) {
         loads.updateStatus(id, status);
         ra.addFlashAttribute("toast", "Status → " + status);
+        return "redirect:/loads/" + id;
+    }
+
+    @PostMapping("/{id}/notify")
+    public String notifyCustomer(@PathVariable String id,
+                                 @RequestParam(value = "channel", required = false) String channel,
+                                 @RequestParam(value = "recipient", required = false) String recipient,
+                                 RedirectAttributes ra) {
+        // If no recipient or no channel is provided, do nothing and toast
+        if (recipient == null || recipient.isBlank() || channel == null || channel.isBlank()) {
+            ra.addFlashAttribute("toast", "Notification skipped (channel/recipient missing).");
+            return "redirect:/loads/" + id;
+        }
+
+        var load = loads.getLoad(id);
+
+        try {
+            notificationService.sendLoadConfirmed(
+                    ChannelType.valueOf(channel),  // EMAIL / SMS / PUSH
+                    recipient,                     // email / phone / token
+                    load.getReferenceNo(),         // customerRef
+                    load.getId()                   // loadId
+            );
+            ra.addFlashAttribute("toast", "Customer notified: Load Confirmed.");
+        } catch (IllegalArgumentException ex) {
+            ra.addFlashAttribute("toast", "Notification failed: " + ex.getMessage());
+        }
+
         return "redirect:/loads/" + id;
     }
 

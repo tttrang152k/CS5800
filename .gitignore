@@ -68,7 +68,6 @@ HW6/.idea/
 !trucking/
 # Inside trucking, keep src/ and pom.xml only
 !trucking/src/
-!trucking/.data
 !trucking/pom.xml
 
 # Ignore trucking/target and other generated files

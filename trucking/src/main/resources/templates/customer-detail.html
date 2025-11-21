@@ -60,7 +60,6 @@
     <tr>
         <th>Invoice</th>
         <th>Load</th>
-        <th>Issued</th>
         <th>Status</th>
         <th style="text-align:right;">Total</th>
         <th>Action</th>
@@ -70,13 +69,45 @@
     <tr th:each="i : ${invoices}">
         <td th:text="${i.id}">INV-000123</td>
         <td><a class="rowlink" th:href="@{'/loads/' + ${i.loadId}}" th:text="${i.loadId}">L-101</a></td>
-        <td th:text="${i.issuedAt}">2025-10-07T10:15</td>
         <td th:text="${i.status}">Sent</td>
         <td style="text-align:right;" th:text="${#numbers.formatDecimal(i.total,1,'COMMA',2,'POINT')}">0.00</td>
         <td><a class="btn" th:href="@{'/invoices/' + ${i.id} + '/pay'}">View Invoice</a></td>
     </tr>
     <tr th:if="${#lists.isEmpty(invoices)}">
-        <td colspan="6" class="muted">No sent invoices for this customer.</td>
+        <td colspan="5" class="muted" style="text-align:center;padding:12px;">No sent invoices for this customer.</td>
+    </tr>
+    </tbody>
+</table>
+
+<h3>Notifications</h3>
+<table>
+    <thead>
+    <tr>
+        <th>Type</th><th>Channel</th><th>Message</th><th>Ref</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="n : ${notifications}">
+        <td th:text="${n.type}">InvoiceCreated</td>
+        <td th:text="${n.channel}">EMAIL</td>
+        <td th:text="${n.message}">Invoice INV-1 created…</td>
+        <td>
+            <span th:text="${n.refType}">Invoice</span>
+            &nbsp;
+            <a class="rowlink"
+               th:if="${n.refType == 'Load'}"
+               th:href="@{'/loads/' + ${n.refId}}"
+               th:text="${n.refId}">L-100</a>
+            <a class="rowlink"
+               th:if="${n.refType == 'Invoice'}"
+               th:href="@{'/invoices/' + ${n.refId} + '/pay'}"
+               th:text="${n.refId}">INV-1</a>
+            <span th:if="${n.refType != 'Load' and n.refType != 'Invoice'}"
+                  th:text="${n.refId}">—</span>
+        </td>
+    </tr>
+    <tr th:if="${#lists.isEmpty(notifications)}">
+        <td colspan="4" class="muted" style="text-align:center;padding:12px;">No notifications yet.</td>
     </tr>
     </tbody>
 </table>

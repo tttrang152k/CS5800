@@ -26,6 +26,33 @@
         .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         select, input[type="url"] { padding:8px; border:1px solid #ddd; border-radius:8px; background:#fff; }
         .footer { margin-top:18px; display:flex; gap:10px; }
+        .notify-grid {
+            display:grid;
+            grid-template-columns: 140px 1fr auto;
+            gap:10px 12px;
+            align-items:end;
+            max-width: 100%;
+        }
+        .notify-field label {
+            display:block;
+            margin-bottom:6px;
+            color:#555;
+            font-weight:600;
+            font-size:.95rem;
+        }
+        .notify-field select,
+        .notify-field input {
+            width:100%;
+            padding:8px;
+            border:1px solid #ddd;
+            border-radius:8px;
+            background:#fff;
+            font:inherit;
+            box-sizing:border-box;
+        }
+        @media (max-width: 900px) {
+            .notify-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -74,6 +101,33 @@
                 <button type="submit" class="btn primary">Update</button>
             </div>
         </form>
+
+        <!-- Notify customer (Load Confirmed) -->
+        <form th:action="@{'/loads/' + ${load.id} + '/notify'}" method="post">
+            <div class="notify-grid" style="margin-top:10px;">
+                <div class="notify-field">
+                    <label for="channel">Channel</label>
+                    <select id="channel" name="channel">
+                        <option value="">— Select —</option>
+                        <option value="EMAIL">Email</option>
+                        <option value="SMS">SMS</option>
+                        <option value="PUSH">Push</option>
+                    </select>
+                </div>
+
+                <div class="notify-field">
+                    <label for="recipient">Recipient</label>
+                    <input id="recipient" type="text" name="recipient" placeholder="email / phone / push token"/>
+                </div>
+
+                <div>
+                    <button type="submit" class="btn primary" style="width:100%;">Notify Customer</button>
+                </div>
+            </div>
+            <div style="color:#666; font-size:.9rem; margin-top:6px;">
+                Leave recipient blank to skip sending (no notification).
+            </div>
+        </form>
     </div>
 </div>
 
@@ -112,7 +166,7 @@
                 <input id="url" type="url" name="url" placeholder="https://example.com/file.pdf" required/>
                 <button type="submit" class="btn primary">Upload</button>
             </div>
-            <div style="color:#666; font-size:.9rem;">Only public links are supported in this demo.</div>
+            <div style="color:#666; font-size:.9rem;">Only public links are supported.</div>
         </form>
     </div>
 </div>
