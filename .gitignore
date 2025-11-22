@@ -75,6 +75,17 @@ trucking/target/
 trucking/.mvn/
 trucking/.idea/
 
+# Keep Quiz6 folder structure
+!Quiz6
+# Inside Quiz6, keep src/main only
+!Quiz6/src/main/
+
+# Ignore Quiz6/target and other generated files
+Quiz6/target/
+Quiz6/.mvn/
+Quiz6/.idea/
+Quiz6/pom.xml
+
 # Ignore IntelliJ and build artifacts globally
 .idea/
 out/
