@@ -1,0 +1,116 @@
+@startuml
+title Object Diagram — Before Modifications
+
+object "readDocumentVerify : Document" as readDocumentVerify
+object "propertiesFactory : CharacterPropertiesFactory" as propertiesFactory
+
+object "character_H:Character" as ch0 {
+    character = 'H'
+}
+object "character_e:Character" as ch1 {
+    character = 'e'
+}
+object "character_l:Character" as ch2 {
+    character = 'l'
+}
+object "character_l:Character" as ch3 {
+    character = 'l'
+}
+object "character_o:Character" as ch4 {
+    character = 'o'
+}
+object "character_W:Character" as ch5 {
+    character = 'W'
+}
+object "character_o:Character" as ch6 {
+    character = 'o'
+}
+object "character_r:Character" as ch7 {
+    character = 'r'
+}
+object "character_l:Character" as ch8 {
+    character = 'l'
+}
+object "character_d:Character" as ch9 {
+    character = 'd'
+}
+object "character_C:Character" as ch10 {
+    character = 'C'
+}
+object "character_S:Character" as ch11 {
+    character = 'S'
+}
+object "character_5:Character" as ch12 {
+    character = '5'
+}
+object "character_8:Character" as ch13 {
+    character = '8'
+}
+object "character_0:Character" as ch14 {
+    character = '0'
+}
+object "character_0:Character" as ch15 {
+    character = '0'
+}
+
+object "props1:CharacterProperties" as props1 {
+    font = "Arial"
+    color = "Black"
+    size = 16
+}
+object "props2:CharacterProperties" as props2 {
+    font = "Arial"
+    color=  "Black"
+    size = 14
+}
+object "props3:CharacterProperties" as props3 {
+    font = "Verdana"
+    color=  "Blue"
+    size = 18
+}
+object "props4:CharacterProperties" as props4 {
+    font = "Verdana"
+    color=  "Red"
+    size = 12
+}
+
+readDocumentVerify *-- propertiesFactory : propertiesFactory
+readDocumentVerify *-- ch0
+readDocumentVerify *-- ch1
+readDocumentVerify *-- ch2
+readDocumentVerify *-- ch3
+readDocumentVerify *-- ch4
+readDocumentVerify *-- ch5
+readDocumentVerify *-- ch6
+readDocumentVerify *-- ch7
+readDocumentVerify *-- ch8
+readDocumentVerify *-- ch9
+readDocumentVerify *-- ch10
+readDocumentVerify *-- ch11
+readDocumentVerify *-- ch12
+readDocumentVerify *-- ch13
+readDocumentVerify *-- ch14
+readDocumentVerify *-- ch15
+
+propertiesFactory ..> props1
+propertiesFactory ..> props2
+propertiesFactory ..> props3
+propertiesFactory ..> props4
+
+ch0  --> props1
+ch5  --> props1
+ch1  --> props2
+ch2  --> props2
+ch3  --> props2
+ch4  --> props2
+ch6  --> props2
+ch7  --> props2
+ch8  --> props2
+ch9  --> props2
+ch10 --> props3
+ch11 --> props3
+ch12 --> props4
+ch13 --> props4
+ch14 --> props4
+ch15 --> props4
+@enduml

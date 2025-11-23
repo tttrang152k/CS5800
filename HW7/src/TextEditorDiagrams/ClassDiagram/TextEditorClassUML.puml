@@ -1,0 +1,48 @@
+@startuml
+title Text Editor (Flyweight) — Class Diagram
+
+class Character {
+  - character: char
+  - characterProperty: CharacterProperties
+  + Character(character: char, characterProperty: CharacterProperties)
+  + setCharacter(character: char): void
+  + setCharacterProperty(characterProperty: CharacterProperties): void
+  + getCharacter(): char
+  + getFont(): String
+  + getColor(): String
+  + getSize(): int
+}
+
+class CharacterProperties {
+  - font: String
+  - color: String
+  - size: int
+  + CharacterProperties(font: String, color: String, size: int)
+  + getFont(): String
+  + getColor(): String
+  + getSize(): int
+}
+
+class CharacterPropertiesFactory {
+  - flyweights: Map<String, CharacterProperties>
+  + setAndRetrieveFlyweightCharacterProperties(font: String, color: String, size: int): CharacterProperties
+  + sizeOfMap(): int
+}
+
+class Document {
+  - characters: List<Character>
+  - propertiesFactory: CharacterPropertiesFactory
+  + addCharacter(c: char, font: String, color: String, size: int): void
+  + editCharacterProperties(index: int, font: String, color: String, size: int): void
+  + saveToFile(filename: String): void
+  + loadFromFile(filename: String): void
+}
+
+class Driver {
+  + main(args: String[]): void
+}
+
+Document o-- CharacterPropertiesFactory
+Document *-- Character
+Character --> CharacterProperties
+@enduml

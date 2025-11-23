@@ -86,6 +86,17 @@ Quiz6/.mvn/
 Quiz6/.idea/
 Quiz6/pom.xml
 
+# Keep HW7 folder structure
+!HW7/
+# Inside HW7, keep src/ and pom.xml only
+!HW7/src/
+!HW7/pom.xml
+
+# Ignore HW7/target and other generated files
+HW7/target/
+HW7/.mvn/
+HW7/.idea/
+
 # Ignore IntelliJ and build artifacts globally
 .idea/
 out/
