@@ -58,8 +58,6 @@ public class InvoiceController {
         return "invoices";
     }
 
-
-    // Create from a Delivered load + optional notify
     @PostMapping("/from-load/{loadId}")
     public String createFromLoad(@PathVariable String loadId,
                                  @RequestParam(value = "channel", required = false) String channel,
@@ -88,8 +86,6 @@ public class InvoiceController {
         return "redirect:/invoices";
     }
 
-    // Create via the top form on /invoices
-    // If amount is empty -> create from load's rate; else -> create manual with amount
     @PostMapping
     public String createManualOrFromLoad(@RequestParam String loadId,
                                          @RequestParam(value = "amount", required = false) java.math.BigDecimal amount,
@@ -99,7 +95,7 @@ public class InvoiceController {
 
         com.startup.trucking.persistence.Invoice inv;
         if (amount == null) {
-            // No amount provided: use load's rate (aka "from load")
+            // No amount provided: use load's rate
             inv = billing.createFromLoad(loadId);
         } else {
             inv = billing.createManual(loadId, amount.floatValue());
@@ -126,8 +122,6 @@ public class InvoiceController {
 
         return "redirect:/invoices";
     }
-
-
 
     @PostMapping("/{id}/send")
     public String send(@PathVariable String id, RedirectAttributes ra) {
@@ -161,7 +155,6 @@ public class InvoiceController {
                       @RequestParam(value = "channel", required = false) String channel,
                       @RequestParam(value = "recipient", required = false) String recipient,
                       RedirectAttributes ra) {
-        // Record payment
         var payment = paymentService.pay(id, PaymentMethod.valueOf(method), amount, "DEMO");
 
         // Optional notify (Payment Received)
@@ -178,7 +171,6 @@ public class InvoiceController {
                 );
                 ra.addFlashAttribute("toast", "Payment recorded and customer notified.");
             } catch (IllegalArgumentException ex) {
-                // If channel enum fails etc., still proceed to confirmation
                 ra.addFlashAttribute("toast", "Payment recorded (notification skipped: " + ex.getMessage() + ").");
             }
         } else {
@@ -187,7 +179,6 @@ public class InvoiceController {
 
         return "redirect:/invoices/" + id + "/pay/confirm?paymentId=" + payment.getId();
     }
-
 
     @GetMapping("/{id}/pay/confirm")
     public String confirm(@PathVariable String id,

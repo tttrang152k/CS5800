@@ -43,7 +43,6 @@ public class LoadController {
 
         List<LoadRow> rows = new ArrayList<>();
         for (Load l : loads.listLoads()) {
-            // Derive names from ids for now (replace with real lookups later)
             String customerName = l.getReferenceNo() != null ? l.getReferenceNo() : "";
             String driver = l.getDriverId() != null ? l.getDriverId() : "";
 
@@ -83,7 +82,6 @@ public class LoadController {
         Load l = loads.getLoad(id);
         model.addAttribute("load", l);
         model.addAttribute("documents", docs.list(id));
-        // toast is flashed from POST handlers; no-op here if empty
         return "load-detail"; // templates/load-detail.html
     }
 
@@ -125,10 +123,10 @@ public class LoadController {
 
         try {
             notificationService.sendLoadConfirmed(
-                    ChannelType.valueOf(channel),  // EMAIL / SMS / PUSH
-                    recipient,                     // email / phone / token
-                    load.getReferenceNo(),         // customerRef
-                    load.getId()                   // loadId
+                    ChannelType.valueOf(channel),
+                    recipient,
+                    load.getReferenceNo(),
+                    load.getId()
             );
             ra.addFlashAttribute("toast", "Customer notified: Load Confirmed.");
         } catch (IllegalArgumentException ex) {

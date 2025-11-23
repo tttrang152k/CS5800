@@ -13,7 +13,7 @@ public class BookingForm {
 
     private String pickupAddress;
     private String deliveryAddress;
-    private String pickupDate;        // keep as String for demo (YYYY-MM-DD)
+    private String pickupDate;
     private String deliveryDate;
 
     // getters/setters
