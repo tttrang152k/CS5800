@@ -4,22 +4,29 @@ A lightweight trucking operations to store and manage truck loads, invoices, pay
 User can view active loads, create invoices from loads, make payments and notify stakeholders about an event. 
 
 ### How to Run the Project
-1. Change the directory to /trucking:
-    'cd to trucking'
-2. Run this command in the project folder:
-    './mvnw spring-boot:run'
-    'mvn clean spring-boot:run'
-3. Open the browser @ http://localhost:8000
+```bash
+# 1. Go to the app folder:
+cd to trucking
+
+# 2. Start the app (macOS/Linux):
+./mvnw spring-boot:run  
+mvnw.cmd spring-boot:run  # Windows
+
+# 3. Run tests:
+./mvnw test 
+# or 
+mvnw.cmd test
+```
+Open your browser @ http://localhost:8080
 
 ### Pages
-* /loads
-* /invoices
-* /customers/{ref}
-* etc
+* /loads - View/Create loads. Links to load details and documents
+* /invoices - List/Create invoices. Make payments
+* /customers/{ref} - Customer overview: loads, sent invoices, notifications
 
 ### Database
-* H2 Dev Database
-* H2 console @ http://localhost:8080/h2
+* H2 Database
+* H2 console @ http://localhost:8080/h2-console
 
 ### Design Patterns
 * Builder: LoadBuilder
