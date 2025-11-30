@@ -1,5 +1,6 @@
 package com.startup.trucking.service;
 
+import com.startup.trucking.billing.tax.TaxStrategyResolver;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.persistence.Invoice;
 import com.startup.trucking.persistence.InvoiceRepository;
@@ -9,20 +10,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class InvoiceServiceTest {
 
-    @Mock
-    InvoiceRepository repo;
-
-    @Mock
-    LoadService loads;
+    @Mock InvoiceRepository repo;
+    @Mock LoadService loads;
+    @Mock TaxStrategyResolver taxResolver;
 
     InvoiceService svc;
 
@@ -31,7 +32,11 @@ class InvoiceServiceTest {
         Invoice existing = new Invoice();
         existing.setId("INV-000123");
         when(repo.findAll()).thenReturn(List.of(existing));
-        svc = new InvoiceService(repo, loads);
+
+        lenient().when(taxResolver.compute(any(Load.class), any(BigDecimal.class)))
+                .thenReturn(BigDecimal.ZERO);
+
+        svc = new InvoiceService(repo, loads, taxResolver);
     }
 
     @Test
@@ -53,7 +58,6 @@ class InvoiceServiceTest {
         assertTrue(ex.getMessage().contains("Invoice not found"));
     }
 
-
     @Test
     void test_createFromLoad_rejects_if_not_delivered() {
         when(repo.findByLoadId("L-11")).thenReturn(Optional.empty());
@@ -73,7 +77,6 @@ class InvoiceServiceTest {
                 () -> svc.createFromLoad("L-12"));
         assertTrue(ex.getMessage().contains("already exists"));
     }
-
 
     @Test
     void test_markSent_sets_status_and_saves() {

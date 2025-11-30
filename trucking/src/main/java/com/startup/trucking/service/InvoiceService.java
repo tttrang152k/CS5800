@@ -1,5 +1,6 @@
 package com.startup.trucking.service;
 
+import com.startup.trucking.billing.tax.TaxStrategyResolver;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.persistence.Invoice;
 import com.startup.trucking.persistence.InvoiceRepository;
@@ -18,10 +19,12 @@ public class InvoiceService {
     private final InvoiceRepository invoices;
     private final LoadService loads;
     private final AtomicInteger invoiceSeq;
+    private final TaxStrategyResolver taxResolver;
 
-    public InvoiceService(InvoiceRepository invoices, LoadService loads) {
+    public InvoiceService(InvoiceRepository invoices, LoadService loads, TaxStrategyResolver taxResolver) {
         this.invoices = invoices;
         this.loads = loads;
+        this.taxResolver = taxResolver;
 
         int seed = invoices.findAll().stream()
                 .map(Invoice::getId)
@@ -76,10 +79,13 @@ public class InvoiceService {
         if (!"Delivered".equalsIgnoreCase(l.getStatus())) {
             throw new IllegalArgumentException("Load must be Delivered to create invoice");
         }
-
         BigDecimal subtotal = BigDecimal.valueOf(l.getRateAmount()).setScale(2);
-        BigDecimal tax = BigDecimal.ZERO;
+        BigDecimal tax = taxResolver.compute(l, subtotal);
         BigDecimal total = subtotal.add(tax);
+
+//        BigDecimal subtotal = BigDecimal.valueOf(l.getRateAmount()).setScale(2);
+//        BigDecimal tax = BigDecimal.ZERO;
+//        BigDecimal total = subtotal.add(tax);
 
         Invoice inv = new Invoice();
         inv.setId(nextInvoiceId());
@@ -103,10 +109,13 @@ public class InvoiceService {
         invoices.findByLoadId(loadId).ifPresent(i -> {
             throw new IllegalArgumentException("Invoice already exists for load " + loadId);
         });
-
         BigDecimal subtotal = BigDecimal.valueOf(amount).setScale(2);
-        BigDecimal tax = BigDecimal.ZERO;
-        BigDecimal total = subtotal;
+        BigDecimal tax = taxResolver.compute(l, subtotal);                // <-- use strategy
+        BigDecimal total = subtotal.add(tax);
+
+//        BigDecimal subtotal = BigDecimal.valueOf(amount).setScale(2);
+//        BigDecimal tax = BigDecimal.ZERO;
+//        BigDecimal total = subtotal;
 
         Invoice inv = new Invoice();
         inv.setId(nextInvoiceId());

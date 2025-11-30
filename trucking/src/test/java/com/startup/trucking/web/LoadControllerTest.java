@@ -1,6 +1,6 @@
 package com.startup.trucking.web;
 
-import com.startup.trucking.domain.Document;
+import com.startup.trucking.persistence.Document;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.notify.ChannelType;
 import com.startup.trucking.persistence.Invoice;
@@ -18,6 +18,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import java.net.URI;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,15 +42,22 @@ class LoadControllerTest {
         Invoice inv = new Invoice(); inv.setId("INV-1"); inv.setLoadId("L-1");
         when(invoices.list()).thenReturn(List.of(inv));
 
-        Document d = new Document("DOC-1", "L-1", "BOL", "Uploaded", URI.create("https://x"));
+        // Build JPA Document via setters (no-args ctor)
+        Document d = new Document();
+        d.setId("DOC-1");
+        d.setLoadId("L-1");
+        d.setType("BOL");
+        d.setStatus("Uploaded");
+        d.setFileRef("https://x"); // stored as String
+        d.setUploadedAt(OffsetDateTime.now());
+
         when(docs.list("L-1")).thenReturn(List.of(d));
 
         Model model = new ConcurrentModel();
         String view = ctl.loads(model);
 
         assertEquals("loads", view);
-        Object rows = model.getAttribute("rows");
-        assertNotNull(rows);
+        assertNotNull(model.getAttribute("rows"));
     }
 
     @Test

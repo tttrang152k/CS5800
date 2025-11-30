@@ -1,6 +1,6 @@
 package com.startup.trucking.web;
 
-import com.startup.trucking.domain.Document;
+import com.startup.trucking.persistence.Document;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.domain.LoadBuilder;
 import com.startup.trucking.notify.ChannelType;
