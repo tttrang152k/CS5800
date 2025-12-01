@@ -8,6 +8,7 @@ import com.startup.trucking.persistence.Invoice;
 import com.startup.trucking.persistence.InvoiceRepository;
 import com.startup.trucking.persistence.Payment;
 import com.startup.trucking.persistence.PaymentRepository;
+import com.startup.trucking.util.PaymentIdGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,7 +66,8 @@ public class PaymentService {
         PaymentReceipt r = gateway.charge(invoiceId, amount.setScale(2), reference);
 
         Payment p = new Payment();
-        p.setId("PAY-" + UUID.randomUUID());
+//        p.setId("PAY-" + UUID.randomUUID());
+        p.setId(PaymentIdGenerator.getInstance().nextId());
         p.setInvoiceId(invoiceId);
         p.setAmount(amount.setScale(2));
         p.setMethod(method.name());

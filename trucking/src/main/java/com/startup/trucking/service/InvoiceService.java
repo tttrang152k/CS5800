@@ -80,12 +80,8 @@ public class InvoiceService {
             throw new IllegalArgumentException("Load must be Delivered to create invoice");
         }
         BigDecimal subtotal = BigDecimal.valueOf(l.getRateAmount()).setScale(2);
-        BigDecimal tax = taxResolver.compute(l, subtotal);
+        BigDecimal tax = taxResolver.compute(l, subtotal);      //  Use Tax Strategy
         BigDecimal total = subtotal.add(tax);
-
-//        BigDecimal subtotal = BigDecimal.valueOf(l.getRateAmount()).setScale(2);
-//        BigDecimal tax = BigDecimal.ZERO;
-//        BigDecimal total = subtotal.add(tax);
 
         Invoice inv = new Invoice();
         inv.setId(nextInvoiceId());
@@ -110,12 +106,8 @@ public class InvoiceService {
             throw new IllegalArgumentException("Invoice already exists for load " + loadId);
         });
         BigDecimal subtotal = BigDecimal.valueOf(amount).setScale(2);
-        BigDecimal tax = taxResolver.compute(l, subtotal);                // <-- use strategy
+        BigDecimal tax = taxResolver.compute(l, subtotal);                // Use Tax Strategy
         BigDecimal total = subtotal.add(tax);
-
-//        BigDecimal subtotal = BigDecimal.valueOf(amount).setScale(2);
-//        BigDecimal tax = BigDecimal.ZERO;
-//        BigDecimal total = subtotal;
 
         Invoice inv = new Invoice();
         inv.setId(nextInvoiceId());
