@@ -1,7 +1,5 @@
 package com.startup.trucking.domain;
 
-import java.util.*;
-
 public class Load {
     private final String id;
     private String referenceNo;     // Broker/CustomerID

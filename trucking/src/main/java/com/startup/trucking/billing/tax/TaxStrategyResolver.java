@@ -18,10 +18,9 @@ public class TaxStrategyResolver {
     }
 
     public BigDecimal compute(Load load, BigDecimal subtotal) {
-        // Demo selection logic:
-        // 1) If referenceNo ends with "-CA" and we have ByCustomerRefTaxStrategy, use it
-        // 2) Else if a FlatRate is configured (> 0), Spring’s bean is present—use it
-        // 3) Else default no-tax
+        // If referenceNo ends with "-CA" and we have ByCustomerRefTaxStrategy, use it
+        // Else if a FlatRate is configured (> 0), Spring’s bean is present—use it
+        // Else default no-tax
         for (TaxStrategy s : strategies) {
             if ("ByCustomerStateTax".equals(s.name()) && matchesByCustomerRef(load)) {
                 return s.computeTax(load, subtotal);
