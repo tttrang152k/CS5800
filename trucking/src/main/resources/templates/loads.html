@@ -28,6 +28,31 @@
         a.rowlink { text-decoration:none; color:#0a58ca; }
         a.rowlink:hover { text-decoration:underline; }
 
+        .toolbar-right {
+            display:flex;
+            flex-direction:column;
+            align-items:flex-end;
+            gap:6px;
+        }
+        .searchbar {
+            display:flex;
+            align-items:center;
+            gap:4px;
+        }
+        .searchbar input[type="text"] {
+            width:200px;
+            padding:4px 6px;
+            border-radius:6px;
+            border:1px solid #ccc;
+            font: inherit;
+        }
+        .searchbar select {
+            padding:4px 6px;
+            border-radius:6px;
+            border:1px solid #ccc;
+            font: inherit;
+        }
+
         .list-toolbar {
             display:flex;
             align-items:center;
@@ -43,10 +68,22 @@
 <div class="container">
     <div class="toolbar">
         <h2>Truck Loads</h2>
-        <a class="btn" href="/invoices">Invoices</a>
+
+        <div class="toolbar-right">
+            <form class="searchbar" th:action="@{/loads/search}" method="get">
+                <input type="text" name="q" placeholder="Search by..." />
+                <select name="field">
+                    <option value="id">ID</option>
+                    <option value="customer">Customer</option>
+                    <option value="status">Status</option>
+                </select>
+                <button type="submit" class="btn small">Search</button>
+            </form>
+
+            <a class="btn" href="/invoices">Invoices</a>
+        </div>
     </div>
 
-    <div></div>
     <div class="list-toolbar">
         <div class="sort-links">
             Sort by:

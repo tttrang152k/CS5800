@@ -54,5 +54,44 @@ public class LoadService {
         e.setStatus(status);
         repo.save(e);
     }
+
+    // New Feature: Load Searching (by ID, customer name, or status)
+    public List<Load> searchLoads(String query, String field) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        String q = query.trim();
+
+        List<LoadEntity> entities = new ArrayList<>();
+
+        switch (field) {
+            case "id" -> {
+                repo.findById(q).ifPresent(entities::add);
+            }
+            case "customer" -> {
+                entities.addAll(repo.findByReferenceNoContainingIgnoreCase(q));
+            }
+            case "status" -> {
+                entities.addAll(repo.findByStatusIgnoreCase(q));
+            }
+            default -> {
+                // fallback: search all three
+                repo.findById(q).ifPresent(entities::add);
+                entities.addAll(repo.findByReferenceNoContainingIgnoreCase(q));
+                entities.addAll(repo.findByStatusIgnoreCase(q));
+
+                // deduplicate by id
+                Map<String, LoadEntity> byId = new LinkedHashMap<>();
+                for (LoadEntity e : entities) {
+                    byId.putIfAbsent(e.getId(), e);
+                }
+                entities = new ArrayList<>(byId.values());
+            }
+        }
+
+        return entities.stream()
+                .map(LoadMapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }
 

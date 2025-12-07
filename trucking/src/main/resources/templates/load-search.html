@@ -1,0 +1,84 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Search Loads</title>
+    <style>
+        body { margin:0; background:#fafafa; font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+        .container { max-width:1100px; margin:24px auto 56px; padding:0 16px; }
+        .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+        h2 { margin:0; }
+        .btn, a.btn { display:inline-flex; align-items:center; justify-content:center;
+            padding:8px 12px; border:1px solid #ddd; border-radius:8px;
+            background:#fff; color:#111; text-decoration:none;
+            font: inherit; line-height:1.2; cursor:pointer; min-height:32px; }
+        table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #eee; border-radius:10px; overflow:hidden; }
+        thead th { background:#f8f9fa; }
+        th, td { padding:10px 8px; border-bottom:1px solid #f0f0f0; text-align:left; }
+        .num { text-align:right; white-space:nowrap; }
+        .muted { color:#777; }
+        a.rowlink { text-decoration:none; color:#0a58ca; }
+        a.rowlink:hover { text-decoration:underline; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="toolbar">
+        <h2>Search Loads</h2>
+        <a class="btn" href="/loads">Back to Loads</a>
+    </div>
+
+    <p class="muted">
+        Showing results for
+        "<span th:text="${query}">query</span>"
+        in
+        <span th:switch="${field}">
+            <span th:case="'id'">Load ID</span>
+            <span th:case="'customer'">Customer Name</span>
+            <span th:case="'status'">Status</span>
+            <span th:case="*">All fields</span>
+        </span>.
+    </p>
+
+    <table>
+        <thead>
+        <tr>
+            <th style="width:90px;">ID</th>
+            <th>Customer Name</th>
+            <th>Status</th>
+            <th class="num" style="width:120px;">Rate Amount</th>
+            <th style="width:110px;">Driver</th>
+            <th>Pickup Address</th>
+            <th>Delivery Address</th>
+            <th style="width:110px;">Pickup Date</th>
+            <th style="width:110px;">Delivery Date</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="load : ${results}">
+            <td>
+                <a class="rowlink" th:href="@{'/loads/' + ${load.id}}" th:text="${load.id}">L-1</a>
+            </td>
+            <td th:text="${load.referenceNo}">ACME</td>
+            <td th:text="${load.status}">Requested</td>
+            <td class="num">
+                <span>$</span>
+                <span th:text="${#numbers.formatDecimal(load.rateAmount, 1, 'COMMA', 2, 'POINT')}">0.00</span>
+            </td>
+            <td th:text="${load.driverId}">EMP-1</td>
+            <td th:text="${load.pickupAddress}">Pickup</td>
+            <td th:text="${load.deliveryAddress}">Delivery</td>
+            <td th:text="${load.pickupDate}">2025-01-01</td>
+            <td th:text="${load.deliveryDate}">2025-01-02</td>
+        </tr>
+
+        <tr th:if="${#lists.isEmpty(results)}">
+            <td colspan="9" class="muted" style="text-align:center; padding:16px;">
+                No loads matched your search.
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

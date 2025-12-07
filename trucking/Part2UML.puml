@@ -314,7 +314,15 @@ package "com.startup.trucking.persistence" {
         + toEntity(l:Load) : LoadEntity
     }
 
-    interface LoadRepository { }
+    interface LoadRepository {
+        + findById(id:String) : Optional<LoadEntity>
+        + findAll() : List<LoadEntity>
+        + save(entity:LoadEntity) : LoadEntity
+        + deleteById(id:String) : void
+        --
+        + findByReferenceNoContainingIgnoreCase(referenceNo:String) : List<LoadEntity>
+        + findByStatusIgnoreCase(status:String) : List<LoadEntity>
+    }
 
     class Notification {
         - id : String
@@ -427,6 +435,7 @@ package "com.startup.trucking.service" {
       + listLoads() : Collection<Load>
       + listLoadsSorted(sortKey:String) : List<Load>
       + updateStatus(loadId: String, status: String) : void
+      + searchLoads(query:String, field:String) : List<Load>
     }
 
     class NotificationService {
@@ -617,6 +626,13 @@ package "com.startup.trucking.web" {
       + invoiceCreated(invoiceId: String, loadId: String, customerRef: String, total: String, channel: String, recipient: String, ra: RedirectAttributes) : String
       + paymentReceived(invoiceId: String, customerRef: String, amount: String, method: String, channel: String, recipient: String, ra: RedirectAttributes) : String
     }
+
+    class SearchController {
+        - loads : LoadService
+        --
+        + SearchController(loads:LoadService)
+        + searchLoads(query:String, field:String, model:Model) : String
+    }
 }
 
 ' ============ Relationships ============
@@ -732,5 +748,7 @@ LoadController --> Document
 LoadController --> Invoice
 
 NotificationController --> NotificationService
+
+SearchController --> LoadService
 
 @enduml

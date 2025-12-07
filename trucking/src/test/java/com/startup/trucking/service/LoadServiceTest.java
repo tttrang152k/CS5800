@@ -70,11 +70,14 @@ class LoadServiceTest {
 
     @Test
     void test_putLoad_rejects_null_or_blank_id() {
-        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class, () -> service.putLoad(null));
+        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class,
+                () -> service.putLoad(null));
         assertTrue(ex1.getMessage().contains("load.id"));
 
-        Load bad = new Load("", null, "Requested", 0f, null, null, null, null, null, null, null, null);
-        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class, () -> service.putLoad(bad));
+        Load bad = new Load("", null, "Requested", 0f,
+                null, null, null, null, null, null, null, null);
+        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class,
+                () -> service.putLoad(bad));
         assertTrue(ex2.getMessage().contains("load.id"));
     }
 
@@ -130,7 +133,7 @@ class LoadServiceTest {
                 null, null, null, null, null, null, null, null);
         Load d2 = new Load("L-2", "BETA", "Requested", 200f,
                 null, null, null, null, null, null, null, null);
-
+        
         List<Load> sorted = List.of(d2, d1);
         when(sortResolver.sort(anyList(), eq("RateAmountDesc"))).thenReturn(sorted);
 
@@ -147,5 +150,120 @@ class LoadServiceTest {
         assertEquals(2, passedToResolver.size());
         assertEquals("L-1", passedToResolver.get(0).getId());
         assertEquals("L-2", passedToResolver.get(1).getId());
+    }
+
+    @Test
+    void test_searchLoads_returns_empty_list_when_query_blank() {
+        List<Load> result1 = service.searchLoads(null, "id");
+        List<Load> result2 = service.searchLoads("   ", "customer");
+
+        assertTrue(result1.isEmpty());
+        assertTrue(result2.isEmpty());
+        verifyNoInteractions(sortResolver);
+        verifyNoInteractions(repo);
+    }
+
+    @Test
+    void test_searchLoads_by_id_returns_single_load_when_found() {
+        LoadEntity e = new LoadEntity();
+        e.setId("L-100");
+        e.setReferenceNo("ACME");
+        e.setStatus("Delivered");
+        e.setRateAmount(new BigDecimal("999.99"));
+
+        when(repo.findById("L-100")).thenReturn(Optional.of(e));
+
+        List<Load> result = service.searchLoads("L-100", "id");
+
+        assertEquals(1, result.size());
+        Load l = result.get(0);
+        assertEquals("L-100", l.getId());
+        assertEquals("ACME", l.getReferenceNo());
+        assertEquals("Delivered", l.getStatus());
+    }
+
+    @Test
+    void test_searchLoads_by_id_returns_empty_when_not_found() {
+        when(repo.findById("missing")).thenReturn(Optional.empty());
+
+        List<Load> result = service.searchLoads("missing", "id");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void test_searchLoads_by_customer_uses_repository_and_maps_results() {
+        LoadEntity e1 = new LoadEntity();
+        e1.setId("L-1");
+        e1.setReferenceNo("ACME Logistics");
+        e1.setStatus("Requested");
+
+        LoadEntity e2 = new LoadEntity();
+        e2.setId("L-2");
+        e2.setReferenceNo("Acme Corp");
+        e2.setStatus("Delivered");
+
+        when(repo.findByReferenceNoContainingIgnoreCase("acme"))
+                .thenReturn(List.of(e1, e2));
+
+        List<Load> result = service.searchLoads("acme", "customer");
+
+        assertEquals(2, result.size());
+        assertEquals("L-1", result.get(0).getId());
+        assertEquals("L-2", result.get(1).getId());
+        verify(repo).findByReferenceNoContainingIgnoreCase("acme");
+    }
+
+    @Test
+    void test_searchLoads_by_status_uses_repository_and_maps_results() {
+        LoadEntity e1 = new LoadEntity();
+        e1.setId("L-1");
+        e1.setReferenceNo("ACME");
+        e1.setStatus("Delivered");
+
+        LoadEntity e2 = new LoadEntity();
+        e2.setId("L-2");
+        e2.setReferenceNo("BETA");
+        e2.setStatus("Delivered");
+
+        when(repo.findByStatusIgnoreCase("Delivered"))
+                .thenReturn(List.of(e1, e2));
+
+        List<Load> result = service.searchLoads("Delivered", "status");
+
+        assertEquals(2, result.size());
+        assertEquals("L-1", result.get(0).getId());
+        assertEquals("L-2", result.get(1).getId());
+        verify(repo).findByStatusIgnoreCase("Delivered");
+    }
+
+    @Test
+    void test_searchLoads_with_unknown_field_searches_all_and_deduplicates() {
+        LoadEntity byId = new LoadEntity();
+        byId.setId("L-1");
+        byId.setReferenceNo("ACME");
+        byId.setStatus("Requested");
+
+        LoadEntity byCustomer = new LoadEntity();
+        byCustomer.setId("L-1");
+        byCustomer.setReferenceNo("ACME Logistics");
+        byCustomer.setStatus("Requested");
+
+        LoadEntity byStatus = new LoadEntity();
+        byStatus.setId("L-2");
+        byStatus.setReferenceNo("Other");
+        byStatus.setStatus("Requested");
+
+        when(repo.findById("L-1")).thenReturn(Optional.of(byId));
+        when(repo.findByReferenceNoContainingIgnoreCase("L-1"))
+                .thenReturn(List.of(byCustomer));
+        when(repo.findByStatusIgnoreCase("L-1")).thenReturn(List.of(byStatus));
+
+        List<Load> result = service.searchLoads("L-1", "weird-field");
+
+        // Expect 2 unique IDs: L-1 and L-2
+        assertEquals(2, result.size());
+        assertEquals("L-1", result.get(0).getId());
+        assertEquals("L-2", result.get(1).getId());
     }
 }
