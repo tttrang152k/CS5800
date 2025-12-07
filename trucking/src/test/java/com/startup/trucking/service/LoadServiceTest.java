@@ -3,11 +3,10 @@ package com.startup.trucking.service;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.persistence.LoadEntity;
 import com.startup.trucking.persistence.LoadRepository;
+import com.startup.trucking.service.sort.LoadSortStrategyResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
+import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -22,6 +21,9 @@ class LoadServiceTest {
 
     @Mock
     LoadRepository repo;
+
+    @Mock
+    LoadSortStrategyResolver sortResolver;
 
     @InjectMocks
     LoadService service;
@@ -106,5 +108,44 @@ class LoadServiceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> service.updateStatus("nope", "Delivered"));
         assertTrue(ex.getMessage().contains("Load not found"));
+    }
+
+    @Test
+    void test_listLoadsSorted_uses_sortResolver_and_returns_sorted_list() {
+        LoadEntity e1 = new LoadEntity();
+        e1.setId("L-1");
+        e1.setReferenceNo("ACME");
+        e1.setStatus("Requested");
+        e1.setRateAmount(new BigDecimal("100.00"));
+
+        LoadEntity e2 = new LoadEntity();
+        e2.setId("L-2");
+        e2.setReferenceNo("BETA");
+        e2.setStatus("Requested");
+        e2.setRateAmount(new BigDecimal("200.00"));
+
+        when(repo.findAll()).thenReturn(List.of(e1, e2));
+
+        Load d1 = new Load("L-1", "ACME", "Requested", 100f,
+                null, null, null, null, null, null, null, null);
+        Load d2 = new Load("L-2", "BETA", "Requested", 200f,
+                null, null, null, null, null, null, null, null);
+
+        List<Load> sorted = List.of(d2, d1);
+        when(sortResolver.sort(anyList(), eq("RateAmountDesc"))).thenReturn(sorted);
+
+        List<Load> result = service.listLoadsSorted("RateAmountDesc");
+
+        assertSame(sorted, result);
+        verify(repo).findAll();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Load>> captor = ArgumentCaptor.forClass(List.class);
+        verify(sortResolver).sort(captor.capture(), eq("RateAmountDesc"));
+
+        List<Load> passedToResolver = captor.getValue();
+        assertEquals(2, passedToResolver.size());
+        assertEquals("L-1", passedToResolver.get(0).getId());
+        assertEquals("L-2", passedToResolver.get(1).getId());
     }
 }

@@ -36,28 +36,29 @@ class LoadControllerTest {
     void test_loads_builds_rows_and_returns_view() {
         LoadController ctl = new LoadController(loads, docs, invoices, notify);
 
-        Load l = new Load("L-1", "ACME", "Delivered", 100f, null, null, "EMP-1", null, "PU", "DEL", "D1", "D2");
-        when(loads.listLoads()).thenReturn(List.of(l));
+        Load l = new Load("L-1", "ACME", "Delivered", 100f, null, null, "EMP-1", null, "PU", "DEL", "2025-01-01", "2025-01-02");
+        when(loads.listLoadsSorted("CustomerNameAsc")).thenReturn(List.of(l));
 
         Invoice inv = new Invoice(); inv.setId("INV-1"); inv.setLoadId("L-1");
         when(invoices.list()).thenReturn(List.of(inv));
 
-        // Build JPA Document via setters (no-args ctor)
         Document d = new Document();
         d.setId("DOC-1");
         d.setLoadId("L-1");
         d.setType("BOL");
         d.setStatus("Uploaded");
-        d.setFileRef("https://x"); // stored as String
+        d.setFileRef("https://x");
         d.setUploadedAt(OffsetDateTime.now());
 
         when(docs.list("L-1")).thenReturn(List.of(d));
 
         Model model = new ConcurrentModel();
-        String view = ctl.loads(model);
+        String view = ctl.loads("CustomerNameAsc", model);
 
         assertEquals("loads", view);
         assertNotNull(model.getAttribute("rows"));
+        assertEquals("CustomerNameAsc", model.getAttribute("currentSort"));
+        verify(loads).listLoadsSorted("CustomerNameAsc");
     }
 
     @Test

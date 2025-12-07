@@ -1,7 +1,6 @@
 package com.startup.trucking.billing.tax;
 
 import com.startup.trucking.domain.Load;
-import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

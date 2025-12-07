@@ -37,16 +37,19 @@ public class LoadController {
     }
 
     @GetMapping
-    public String loads(Model model) {
+    public String loads(@RequestParam(name = "sort", required = false) String sortKey,
+                        Model model) {
+
         Map<String, Invoice> invoiceByLoadId = invoices.list().stream()
                 .collect(Collectors.toMap(Invoice::getLoadId, i -> i, (a, b) -> a));
 
+        var loadList = loads.listLoadsSorted(sortKey);
+
         List<LoadRow> rows = new ArrayList<>();
-        for (Load l : loads.listLoads()) {
+        for (Load l : loadList) {
             String customerName = l.getReferenceNo() != null ? l.getReferenceNo() : "";
             String driver = l.getDriverId() != null ? l.getDriverId() : "";
 
-            // Pick a single document link if any (e.g., first BOL/POD)
             String docUrl = null;
             List<Document> docList = docs.list(l.getId());
             if (!docList.isEmpty() && docList.get(0).downloadUri() != null) {
@@ -72,9 +75,13 @@ public class LoadController {
                     invoiceId
             ));
         }
+
         model.addAttribute("rows", rows);
-        return "loads"; // -> templates/loads.html
+        model.addAttribute("currentSort", sortKey == null ? "" : sortKey);
+
+        return "loads"; // templates/loads.html
     }
+
 
     @GetMapping("/{id}")
     public String detail(@PathVariable String id, Model model,
@@ -149,7 +156,7 @@ public class LoadController {
     @GetMapping("/new")
     public String newLoadForm(Model model) {
         model.addAttribute("form", new BookingForm());
-        return "load-new"; // templates/load-new.html
+        return "load-new";
     }
 
     @PostMapping

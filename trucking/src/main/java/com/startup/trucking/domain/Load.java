@@ -50,3 +50,4 @@ public class Load {
     public String getTrackingId(){ return trackingId; }
     public String getRateConfirmationRef(){ return rateConfirmationRef; }
 }
+

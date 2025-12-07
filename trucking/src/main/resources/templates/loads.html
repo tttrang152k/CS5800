@@ -27,6 +27,16 @@
         .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         a.rowlink { text-decoration:none; color:#0a58ca; }
         a.rowlink:hover { text-decoration:underline; }
+
+        .list-toolbar {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            margin-bottom:12px;
+        }
+        .sort-links {
+            font-size:0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -36,8 +46,20 @@
         <a class="btn" href="/invoices">Invoices</a>
     </div>
 
-    <div>
-        <a class="btn" href="/loads/new">+ Create New Load</a>
+    <div></div>
+    <div class="list-toolbar">
+        <div class="sort-links">
+            Sort by:
+            <a th:href="@{/loads(sort='CustomerNameAsc')}">Customer</a> |
+            <a th:href="@{/loads(sort='RateAmountAsc')}">Rate ↑</a> |
+            <a th:href="@{/loads(sort='RateAmountDesc')}">Rate ↓</a> |
+            <a th:href="@{/loads(sort='PickupDateAsc')}">Pickup date</a> |
+            <a th:href="@{/loads(sort='DeliveryDateAsc')}">Delivery date</a>
+        </div>
+
+        <div>
+            <a class="btn" href="/loads/new">+ Create New Load</a>
+        </div>
     </div>
 
     <table>
