@@ -2,8 +2,8 @@ package com.startup.trucking.domain;
 
 public class LoadBuilder {
     private String id;
-    private String referenceNo;         // Broker/CustomerID or Company Name
-    private String status = "Requested"; // default
+    private String referenceNo;
+    private String status = "Requested";
     private float rateAmount;
     private String trackingId;
 

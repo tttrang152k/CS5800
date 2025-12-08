@@ -2,6 +2,7 @@ package com.startup.trucking.web;
 
 import com.startup.trucking.notify.ChannelType;
 import com.startup.trucking.service.NotificationService;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -13,37 +14,90 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("Notification Controller Unit Tests")
 class NotificationControllerTest {
 
-    @Mock NotificationService notify;
+    private static final String LOAD_ID = "L-1";
+    private static final String CUSTOMER_ACME = "ACME";
+    private static final String INVOICE_ID = "INV-1";
+
+    @Mock
+    NotificationService notificationService;
 
     @Test
-    void test_loadConfirmed_redirects_and_calls_service() {
-        NotificationController ctl = new NotificationController(notify);
-        RedirectAttributes ra = new RedirectAttributesModelMap();
-        String redirect = ctl.loadConfirmed("L-1", "ACME", "EMAIL", "ops@acme.com", ra);
+    @DisplayName("notifyLoadConfirmed() - Redirects and calls service")
+    void notifyLoadConfirmed_redirects_andCallsService() {
+        NotificationController controller = new NotificationController(notificationService);
+        RedirectAttributes redirectAttributes = new RedirectAttributesModelMap();
 
-        assertEquals("redirect:/loads/L-1", redirect);
-        verify(notify).sendLoadConfirmed(ChannelType.EMAIL, "ops@acme.com", "ACME", "L-1");
+        String redirect = controller.notifyLoadConfirmed(
+                LOAD_ID,
+                CUSTOMER_ACME,
+                "EMAIL",
+                "ops@acme.com",
+                redirectAttributes
+        );
+
+        assertEquals("redirect:/loads/" + LOAD_ID, redirect);
+        verify(notificationService).sendLoadConfirmed(
+                ChannelType.EMAIL,
+                "ops@acme.com",
+                CUSTOMER_ACME,
+                LOAD_ID
+        );
     }
 
     @Test
-    void test_invoiceCreated_redirects_and_calls_service() {
-        NotificationController ctl = new NotificationController(notify);
-        RedirectAttributes ra = new RedirectAttributesModelMap();
-        String redirect = ctl.invoiceCreated("INV-1", "L-1", "ACME", "100.00", "SMS", "15551230000", ra);
+    @DisplayName("notifyInvoiceCreated() - Redirects and calls service")
+    void notifyInvoiceCreated_redirects_andCallsService() {
+        NotificationController controller = new NotificationController(notificationService);
+        RedirectAttributes redirectAttributes = new RedirectAttributesModelMap();
+
+        String redirect = controller.notifyInvoiceCreated(
+                INVOICE_ID,
+                LOAD_ID,
+                CUSTOMER_ACME,
+                "100.00",
+                "SMS",
+                "15551230000",
+                redirectAttributes
+        );
 
         assertEquals("redirect:/invoices", redirect);
-        verify(notify).sendInvoiceCreated(ChannelType.SMS, "15551230000", "ACME", "INV-1", "L-1", "100.00");
+        verify(notificationService).sendInvoiceCreated(
+                ChannelType.SMS,
+                "15551230000",
+                CUSTOMER_ACME,
+                INVOICE_ID,
+                LOAD_ID,
+                "100.00"
+        );
     }
 
     @Test
-    void test_paymentReceived_redirects_and_calls_service() {
-        NotificationController ctl = new NotificationController(notify);
-        RedirectAttributes ra = new RedirectAttributesModelMap();
-        String redirect = ctl.paymentReceived("INV-1", "ACME", "25.00", "CARD", "PUSH", "token123", ra);
+    @DisplayName("notifyPaymentReceived() - Redirects and calls service")
+    void notifyPaymentReceived_redirects_andCallsService() {
+        NotificationController controller = new NotificationController(notificationService);
+        RedirectAttributes redirectAttributes = new RedirectAttributesModelMap();
 
-        assertEquals("redirect:/invoices/INV-1/pay", redirect);
-        verify(notify).sendPaymentReceived(ChannelType.PUSH, "token123", "ACME", "INV-1", "25.00", "CARD");
+        String redirect = controller.notifyPaymentReceived(
+                INVOICE_ID,
+                CUSTOMER_ACME,
+                "25.00",
+                "CARD",
+                "PUSH",
+                "token123",
+                redirectAttributes
+        );
+
+        assertEquals("redirect:/invoices/" + INVOICE_ID + "/pay", redirect);
+        verify(notificationService).sendPaymentReceived(
+                ChannelType.PUSH,
+                "token123",
+                CUSTOMER_ACME,
+                INVOICE_ID,
+                "25.00",
+                "CARD"
+        );
     }
 }

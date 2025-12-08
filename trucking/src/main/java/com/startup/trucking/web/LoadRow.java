@@ -10,13 +10,22 @@ public class LoadRow {
     public String deliveryAddress;
     public String pickupDate;
     public String deliveryDate;
-    public String documentUrl;  // null if not available
+    public String documentUrl;
     public boolean invoiced;
     public String invoiceId;
 
-    public LoadRow(String id, String customerName, String status, float rateAmount, String driver,
-                   String pickupAddress, String deliveryAddress, String pickupDate, String deliveryDate,
-                   String documentUrl, boolean invoiced, String invoiceId) {
+    public LoadRow(String id,
+                   String customerName,
+                   String status,
+                   float rateAmount,
+                   String driver,
+                   String pickupAddress,
+                   String deliveryAddress,
+                   String pickupDate,
+                   String deliveryDate,
+                   String documentUrl,
+                   boolean invoiced,
+                   String invoiceId) {
         this.id = id;
         this.customerName = customerName;
         this.status = status;

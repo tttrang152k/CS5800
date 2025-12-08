@@ -2,8 +2,8 @@ package com.startup.trucking.domain;
 
 public class Load {
     private final String id;
-    private String referenceNo;     // Broker/CustomerID
-    private String status;          // Requested, Assigned, Dispatched, Delivered, Canceled
+    private String referenceNo;
+    private String status;
     private float rateAmount;
     private String trackingId;
 

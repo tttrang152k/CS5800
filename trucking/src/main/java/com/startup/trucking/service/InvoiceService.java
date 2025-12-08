@@ -11,120 +11,148 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class InvoiceService {
 
-    private final InvoiceRepository invoices;
-    private final LoadService loads;
-    private final AtomicInteger invoiceSeq;
+    private static final String INVOICE_PREFIX = "INV-";
+    private static final int MAX_SEQUENCE = 100_000;
+    private static final String STATUS_DRAFT = "Draft";
+    private static final String STATUS_SENT = "Sent";
+    private static final String STATUS_DELIVERED = "Delivered";
+
+    private final InvoiceRepository invoiceRepository;
+    private final LoadService loadService;
+    private final AtomicInteger invoiceSequence;
     private final TaxStrategyResolver taxResolver;
 
-    public InvoiceService(InvoiceRepository invoices, LoadService loads, TaxStrategyResolver taxResolver) {
-        this.invoices = invoices;
-        this.loads = loads;
+    public InvoiceService(InvoiceRepository invoiceRepository,
+                          LoadService loadService,
+                          TaxStrategyResolver taxResolver) {
+        this.invoiceRepository = invoiceRepository;
+        this.loadService = loadService;
         this.taxResolver = taxResolver;
-
-        int seed = invoices.findAll().stream()
-                .map(Invoice::getId)
-                .filter(Objects::nonNull)
-                .filter(id -> id.startsWith("INV-"))
-                .mapToInt(id -> {
-                    try { return Integer.parseInt(id.substring(4)); }
-                    catch (Exception e) { return -1; }
-                })
-                .max().orElse(-1);
-        this.invoiceSeq = new AtomicInteger(seed);
+        this.invoiceSequence = initializeSequence(invoiceRepository.findAll());
     }
 
-    private String nextInvoiceId() {
-        int next = invoiceSeq.updateAndGet(i -> {
-            int n = i + 1;
-            return (n > 100000) ? 0 : n;   // wrap at 100000
-        });
-        String candidate = String.format("INV-%06d", next);
+    // ---------------------------------------------------------------------
+    // Public API
+    // ---------------------------------------------------------------------
 
-        if (invoices.findById(candidate).isPresent()) {
-            for (int i = 0; i <= 100000; i++) {
-                String alt = String.format("INV-%06d", i);
-                if (invoices.findById(alt).isEmpty()) {
-                    invoiceSeq.set(i);
-                    return alt;
-                }
-            }
-            throw new IllegalStateException("No available invoice IDs in range 0..100000");
-        }
-        return candidate;
+    public Optional<Invoice> findByLoadId(String loadId) {
+        return invoiceRepository.findByLoadId(loadId);
     }
 
-    public java.util.Optional<Invoice> findByLoadId(String loadId) {
-        return invoices.findByLoadId(loadId);
+    public List<Invoice> list() {
+        return invoiceRepository.findAll();
     }
-
-    public List<Invoice> list() { return invoices.findAll(); }
 
     public Invoice get(String id) {
-        return invoices.findById(id)
+        return invoiceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found: " + id));
     }
 
     @Transactional
     public Invoice createFromLoad(String loadId) {
-        invoices.findByLoadId(loadId).ifPresent(i -> {
-            throw new IllegalArgumentException("Invoice already exists for load " + loadId);
-        });
+        Load load = loadService.getLoad(loadId);
+        ensureInvoiceCanBeCreated(loadId, load);
 
-        Load l = loads.getLoad(loadId);
-        if (!"Delivered".equalsIgnoreCase(l.getStatus())) {
-            throw new IllegalArgumentException("Load must be Delivered to create invoice");
-        }
-        BigDecimal subtotal = BigDecimal.valueOf(l.getRateAmount()).setScale(2);
-        BigDecimal tax = taxResolver.compute(l, subtotal);      //  Use Tax Strategy
-        BigDecimal total = subtotal.add(tax);
-
-        Invoice inv = new Invoice();
-        inv.setId(nextInvoiceId());
-        inv.setLoadId(loadId);
-        inv.setCustomerRef(l.getReferenceNo());
-        inv.setIssuedAt(OffsetDateTime.now());
-        inv.setStatus("Draft");
-        inv.setSubtotal(subtotal);
-        inv.setTax(tax);
-        inv.setTotal(total);
-
-        return invoices.save(inv);
+        BigDecimal subtotal = BigDecimal.valueOf(load.getRateAmount()).setScale(2);
+        return createInvoice(loadId, load, subtotal);
     }
 
     @Transactional
     public Invoice createManual(String loadId, float amount) {
-        Load l = loads.getLoad(loadId);
-        if (!"Delivered".equalsIgnoreCase(l.getStatus())) {
-            throw new IllegalArgumentException("Load must be Delivered to create invoice");
-        }
-        invoices.findByLoadId(loadId).ifPresent(i -> {
-            throw new IllegalArgumentException("Invoice already exists for load " + loadId);
-        });
-        BigDecimal subtotal = BigDecimal.valueOf(amount).setScale(2);
-        BigDecimal tax = taxResolver.compute(l, subtotal);                // Use Tax Strategy
-        BigDecimal total = subtotal.add(tax);
+        Load load = loadService.getLoad(loadId);
+        ensureInvoiceCanBeCreated(loadId, load);
 
-        Invoice inv = new Invoice();
-        inv.setId(nextInvoiceId());
-        inv.setLoadId(loadId);
-        inv.setCustomerRef(l.getReferenceNo());
-        inv.setIssuedAt(OffsetDateTime.now());
-        inv.setStatus("Draft");
-        inv.setSubtotal(subtotal);
-        inv.setTax(tax);
-        inv.setTotal(total);
-        return invoices.save(inv);
+        BigDecimal subtotal = BigDecimal.valueOf(amount).setScale(2);
+        return createInvoice(loadId, load, subtotal);
     }
 
     @Transactional
     public void markSent(String invoiceId) {
-        var inv = get(invoiceId);
-        inv.setStatus("Sent");
-        invoices.save(inv);
+        Invoice invoice = get(invoiceId);
+        invoice.setStatus(STATUS_SENT);
+        invoiceRepository.save(invoice);
+    }
+
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
+
+    private AtomicInteger initializeSequence(List<Invoice> existingInvoices) {
+        int seed = existingInvoices.stream()
+                .map(Invoice::getId)
+                .filter(Objects::nonNull)
+                .filter(id -> id.startsWith(INVOICE_PREFIX))
+                .mapToInt(this::parseInvoiceNumberSafely)
+                .max()
+                .orElse(-1);
+        return new AtomicInteger(seed);
+    }
+
+    private int parseInvoiceNumberSafely(String id) {
+        try {
+            return Integer.parseInt(id.substring(INVOICE_PREFIX.length()));
+        } catch (Exception ex) {
+            return -1;
+        }
+    }
+
+    private String nextInvoiceId() {
+        int next = invoiceSequence.updateAndGet(current -> {
+            int candidate = current + 1;
+            return (candidate > MAX_SEQUENCE) ? 0 : candidate;
+        });
+
+        String candidateId = formatInvoiceId(next);
+
+        if (invoiceRepository.findById(candidateId).isPresent()) {
+            for (int i = 0; i <= MAX_SEQUENCE; i++) {
+                String alternativeId = formatInvoiceId(i);
+                if (invoiceRepository.findById(alternativeId).isEmpty()) {
+                    invoiceSequence.set(i);
+                    return alternativeId;
+                }
+            }
+            throw new IllegalStateException(
+                    "No available invoice IDs in range 0.." + MAX_SEQUENCE);
+        }
+
+        return candidateId;
+    }
+
+    private String formatInvoiceId(int sequence) {
+        return String.format("%s%06d", INVOICE_PREFIX, sequence);
+    }
+
+    private void ensureInvoiceCanBeCreated(String loadId, Load load) {
+        invoiceRepository.findByLoadId(loadId).ifPresent(existing -> {
+            throw new IllegalArgumentException("Invoice already exists for load " + loadId);
+        });
+
+        if (!STATUS_DELIVERED.equalsIgnoreCase(load.getStatus())) {
+            throw new IllegalArgumentException("Load must be Delivered to create invoice");
+        }
+    }
+
+    private Invoice createInvoice(String loadId, Load load, BigDecimal subtotal) {
+        BigDecimal tax = taxResolver.compute(load, subtotal);
+        BigDecimal total = subtotal.add(tax);
+
+        Invoice invoice = new Invoice();
+        invoice.setId(nextInvoiceId());
+        invoice.setLoadId(loadId);
+        invoice.setCustomerRef(load.getReferenceNo());
+        invoice.setIssuedAt(OffsetDateTime.now());
+        invoice.setStatus(STATUS_DRAFT);
+        invoice.setSubtotal(subtotal);
+        invoice.setTax(tax);
+        invoice.setTotal(total);
+
+        return invoiceRepository.save(invoice);
     }
 }

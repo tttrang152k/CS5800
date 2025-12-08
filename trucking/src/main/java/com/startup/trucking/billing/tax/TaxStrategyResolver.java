@@ -14,7 +14,7 @@ public class TaxStrategyResolver {
 
     public TaxStrategyResolver(List<TaxStrategy> strategies, NoTaxStrategy defaultStrategy) {
         this.strategies = strategies;
-        this.defaultStrategy = defaultStrategy; // fallback
+        this.defaultStrategy = defaultStrategy;
     }
 
     public BigDecimal compute(Load load, BigDecimal subtotal) {

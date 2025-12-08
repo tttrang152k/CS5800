@@ -13,35 +13,41 @@ import java.util.stream.Collectors;
 
 @Service
 public class LoadService {
-    private final LoadRepository repo;
+
+    private static final String FIELD_ID = "id";
+    private static final String FIELD_CUSTOMER = "customer";
+    private static final String FIELD_STATUS = "status";
+
+    private final LoadRepository repository;
     private final LoadSortStrategyResolver sortResolver;
 
-    public LoadService(LoadRepository repo, LoadSortStrategyResolver sortResolver) {
-        this.repo = repo;
+    public LoadService(LoadRepository repository, LoadSortStrategyResolver sortResolver) {
+        this.repository = repository;
         this.sortResolver = sortResolver;
     }
 
     public Load getLoad(String loadId) {
-        return repo.findById(loadId)
+        return repository.findById(loadId)
                 .map(LoadMapper::toDomain)
                 .orElseThrow(() -> new IllegalArgumentException("Load not found: " + loadId));
     }
 
     @Transactional
     public void putLoad(Load load) {
-        if (load == null || load.getId() == null || load.getId().isBlank()) {
+        if (load == null || isBlank(load.getId())) {
             throw new IllegalArgumentException("load.id must not be blank");
         }
-        repo.save(LoadMapper.toEntity(load));
+        repository.save(LoadMapper.toEntity(load));
     }
 
     public Collection<Load> listLoads() {
-        return repo.findAll().stream().map(LoadMapper::toDomain).collect(Collectors.toList());
+        return repository.findAll().stream()
+                .map(LoadMapper::toDomain)
+                .collect(Collectors.toList());
     }
 
-    // New feature: Load Sorting
     public List<Load> listLoadsSorted(String sortKey) {
-        List<Load> loads = repo.findAll().stream()
+        List<Load> loads = repository.findAll().stream()
                 .map(LoadMapper::toDomain)
                 .collect(Collectors.toList());
         return sortResolver.sort(loads, sortKey);
@@ -49,49 +55,90 @@ public class LoadService {
 
     @Transactional
     public void updateStatus(String loadId, String status) {
-        LoadEntity e = repo.findById(loadId)
+        LoadEntity entity = repository.findById(loadId)
                 .orElseThrow(() -> new IllegalArgumentException("Load not found: " + loadId));
-        e.setStatus(status);
-        repo.save(e);
+        entity.setStatus(status);
+        repository.save(entity);
     }
 
-    // New Feature: Load Searching (by ID, customer name, or status)
     public List<Load> searchLoads(String query, String field) {
-        if (query == null || query.isBlank()) {
+        if (isBlank(query)) {
             return List.of();
         }
-        String q = query.trim();
 
-        List<LoadEntity> entities = new ArrayList<>();
+        String trimmedQuery = query.trim();
+        String normalizedField = normalizeField(field);
 
-        switch (field) {
-            case "id" -> {
-                repo.findById(q).ifPresent(entities::add);
-            }
-            case "customer" -> {
-                entities.addAll(repo.findByReferenceNoContainingIgnoreCase(q));
-            }
-            case "status" -> {
-                entities.addAll(repo.findByStatusIgnoreCase(q));
-            }
-            default -> {
-                // fallback: search all three
-                repo.findById(q).ifPresent(entities::add);
-                entities.addAll(repo.findByReferenceNoContainingIgnoreCase(q));
-                entities.addAll(repo.findByStatusIgnoreCase(q));
+        return switch (normalizedField) {
+            case FIELD_ID -> searchById(trimmedQuery);
+            case FIELD_CUSTOMER -> searchByCustomer(trimmedQuery);
+            case FIELD_STATUS -> searchByStatus(trimmedQuery);
+            default -> searchAcrossAllFields(trimmedQuery);
+        };
+    }
 
-                // deduplicate by id
-                Map<String, LoadEntity> byId = new LinkedHashMap<>();
-                for (LoadEntity e : entities) {
-                    byId.putIfAbsent(e.getId(), e);
-                }
-                entities = new ArrayList<>(byId.values());
-            }
+    // ---------------------------------------------------------------------
+    // Search helpers
+    // ---------------------------------------------------------------------
+
+    private List<Load> searchById(String id) {
+        return repository.findById(id)
+                .map(List::of)
+                .map(this::mapEntitiesToDomain)
+                .orElseGet(List::of);
+    }
+
+    private List<Load> searchByCustomer(String customerQuery) {
+        List<LoadEntity> entities =
+                repository.findByReferenceNoContainingIgnoreCase(customerQuery);
+        return mapEntitiesToDomain(entities);
+    }
+
+    private List<Load> searchByStatus(String status) {
+        List<LoadEntity> entities = repository.findByStatusIgnoreCase(status);
+        return mapEntitiesToDomain(entities);
+    }
+
+    private List<Load> searchAcrossAllFields(String query) {
+        List<LoadEntity> allMatches = new ArrayList<>();
+
+        repository.findById(query).ifPresent(allMatches::add);
+        allMatches.addAll(repository.findByReferenceNoContainingIgnoreCase(query));
+        allMatches.addAll(repository.findByStatusIgnoreCase(query));
+
+        List<LoadEntity> deduped = deduplicateById(allMatches);
+        return mapEntitiesToDomain(deduped);
+    }
+
+    // ---------------------------------------------------------------------
+    // Utility helpers
+    // ---------------------------------------------------------------------
+
+    private String normalizeField(String field) {
+        if (isBlank(field)) {
+            return FIELD_ID;
         }
+        return field.trim().toLowerCase(Locale.ROOT);
+    }
 
+    private List<Load> mapEntitiesToDomain(List<LoadEntity> entities) {
         return entities.stream()
                 .map(LoadMapper::toDomain)
                 .collect(Collectors.toList());
     }
-}
 
+    private List<LoadEntity> deduplicateById(List<LoadEntity> entities) {
+        Map<String, LoadEntity> byId = new LinkedHashMap<>();
+        for (LoadEntity entity : entities) {
+            if (entity.getId() == null) {
+                continue;
+            }
+            byId.putIfAbsent(entity.getId(), entity);
+        }
+        return new ArrayList<>(byId.values());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+}

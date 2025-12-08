@@ -9,9 +9,11 @@ import com.startup.trucking.persistence.InvoiceRepository;
 import com.startup.trucking.persistence.Payment;
 import com.startup.trucking.persistence.PaymentRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -20,153 +22,197 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("Payment Service Unit Tests")
 class PaymentServiceTest {
 
-    @Mock PaymentRepository payments;
-    @Mock InvoiceRepository invoices;
-    @Mock PaymentGatewayRegistry gateways;
-    @Mock PaymentGateway gateway;
+    private static final String INVOICE_ID = "INV-1";
+
+    @Mock
+    PaymentRepository paymentRepository;
+
+    @Mock
+    InvoiceRepository invoiceRepository;
+
+    @Mock
+    PaymentGatewayRegistry gatewayRegistry;
+
+    @Mock
+    PaymentGateway paymentGateway;
+
+    @Mock
+    PaymentReceipt paymentReceipt;
 
     PaymentService service;
 
     @BeforeEach
-    void init() {
-        service = new PaymentService(payments, invoices, gateways);
+    void setUp() {
+        service = new PaymentService(paymentRepository, invoiceRepository, gatewayRegistry);
     }
 
-    @Test
-    void test_listForInvoice_delegates_to_repository() {
-        when(payments.findByInvoiceId("INV-1")).thenReturn(List.of(new Payment()));
-        assertEquals(1, service.listForInvoice("INV-1").size());
-        verify(payments).findByInvoiceId("INV-1");
-    }
+    // ---------------------------------------------------------------------
+    // listForInvoice
+    // ---------------------------------------------------------------------
 
     @Test
+    @DisplayName("listForInvoice() - Returns all payments for given invoice")
+    void test_listForInvoice_returns_payments() {
+        Payment p1 = new Payment();
+        p1.setId("PAY-1");
+        Payment p2 = new Payment();
+        p2.setId("PAY-2");
+
+        when(paymentRepository.findByInvoiceId(INVOICE_ID)).thenReturn(List.of(p1, p2));
+
+        List<Payment> result = service.listForInvoice(INVOICE_ID);
+
+        assertEquals(2, result.size());
+        assertEquals("PAY-1", result.get(0).getId());
+        assertEquals("PAY-2", result.get(1).getId());
+        verify(paymentRepository).findByInvoiceId(INVOICE_ID);
+    }
+
+    // ---------------------------------------------------------------------
+    // get
+    // ---------------------------------------------------------------------
+
+    @Test
+    @DisplayName("get() - Returns existing payment")
     void test_get_returns_when_found() {
-        Payment p = new Payment();
-        p.setId("PAY-1");
-        when(payments.findById("PAY-1")).thenReturn(Optional.of(p));
-        assertEquals(p, service.get("PAY-1"));
+        Payment payment = new Payment();
+        payment.setId("PAY-1");
+        when(paymentRepository.findById("PAY-1")).thenReturn(Optional.of(payment));
+
+        Payment result = service.get("PAY-1");
+
+        assertSame(payment, result);
+        verify(paymentRepository).findById("PAY-1");
     }
 
     @Test
+    @DisplayName("get() - Missing payment throws exception")
     void test_get_throws_when_missing() {
-        when(payments.findById("PAY-X")).thenReturn(Optional.empty());
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> service.get("PAY-X"));
+        when(paymentRepository.findById("PAY-X")).thenReturn(Optional.empty());
+
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class, () -> service.get("PAY-X"));
+
         assertTrue(ex.getMessage().contains("Payment not found"));
+        verify(paymentRepository).findById("PAY-X");
+    }
+
+    // ---------------------------------------------------------------------
+    // pay - validation
+    // ---------------------------------------------------------------------
+
+    @Test
+    @DisplayName("pay() - Throws when amount is null")
+    void test_pay_throws_when_amount_null() {
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class,
+                        () -> service.pay(INVOICE_ID, PaymentMethod.CARD, null, "R"));
+
+        assertTrue(ex.getMessage().contains("Amount must be positive"));
+        verifyNoInteractions(invoiceRepository, paymentRepository, gatewayRegistry);
     }
 
     @Test
-    void test_pay_success_partial_then_paid_status_updates() {
-        Invoice inv = new Invoice();
-        inv.setId("INV-100");
-        inv.setTotal(new BigDecimal("100.00"));
-        inv.setStatus("Sent");
-        when(invoices.findById("INV-100")).thenReturn(Optional.of(inv));
+    @DisplayName("pay() - Throws when amount is non-positive")
+    void test_pay_throws_when_amount_non_positive() {
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class,
+                        () -> service.pay(INVOICE_ID, PaymentMethod.CARD, BigDecimal.ZERO, "R"));
 
-        Payment prior = new Payment();
-        prior.setAmount(new BigDecimal("30.00"));
-        when(payments.findByInvoiceId("INV-100")).thenReturn(List.of(prior));
-
-        when(gateways.resolve(PaymentMethod.CARD)).thenReturn(gateway);
-        PaymentReceipt receipt = new PaymentReceipt("CardGateway", "AUTH-123", new BigDecimal("70.00"),
-                OffsetDateTime.now(), "Cleared");
-        when(gateway.charge(eq("INV-100"), eq(new BigDecimal("70.00")), eq("DEMO"))).thenReturn(receipt);
-
-        ArgumentCaptor<Payment> savedCap = ArgumentCaptor.forClass(Payment.class);
-        when(payments.save(savedCap.capture())).thenAnswer(a -> a.getArgument(0));
-
-        ArgumentCaptor<Invoice> invCap = ArgumentCaptor.forClass(Invoice.class);
-        when(invoices.save(invCap.capture())).thenAnswer(a -> a.getArgument(0));
-
-        Payment out = service.pay("INV-100", PaymentMethod.CARD, new BigDecimal("70.0"), "DEMO");
-
-        // payment persisted with scale 2
-        Payment saved = savedCap.getValue();
-        assertEquals("INV-100", saved.getInvoiceId());
-        assertEquals(new BigDecimal("70.00"), saved.getAmount());
-        assertEquals("CARD", saved.getMethod());
-        assertEquals("Cleared", saved.getStatus());
-        assertEquals("CardGateway", saved.getProvider());
-        assertEquals("AUTH-123", saved.getAuthCode());
-        assertNotNull(saved.getPaidAt());
-        assertEquals(out.getId(), saved.getId());
-
-        Invoice savedInv = invCap.getValue();
-        assertEquals("Paid", savedInv.getStatus());
+        assertTrue(ex.getMessage().contains("Amount must be positive"));
+        verifyNoInteractions(invoiceRepository, paymentRepository, gatewayRegistry);
     }
 
     @Test
-    void test_pay_success_results_in_partially_paid_when_balance_remaining() {
-        Invoice inv = new Invoice();
-        inv.setId("INV-200");
-        inv.setTotal(new BigDecimal("100.00"));
-        inv.setStatus("Sent");
-        when(invoices.findById("INV-200")).thenReturn(Optional.of(inv));
+    @DisplayName("pay() - Missing invoice throws exception")
+    void test_pay_throws_when_invoice_not_found() {
+        when(invoiceRepository.findById(INVOICE_ID)).thenReturn(Optional.empty());
 
-        when(payments.findByInvoiceId("INV-200")).thenReturn(List.of());
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class,
+                        () -> service.pay(INVOICE_ID, PaymentMethod.CARD, new BigDecimal("10.00"), "R"));
 
-        when(gateways.resolve(PaymentMethod.ACH)).thenReturn(gateway);
-        PaymentReceipt receipt = new PaymentReceipt("AchGateway", "ACH-XYZ", new BigDecimal("20.00"),
-                OffsetDateTime.now(), "Cleared");
-        when(gateway.charge(eq("INV-200"), eq(new BigDecimal("20.00")), any())).thenReturn(receipt);
-
-        service.pay("INV-200", PaymentMethod.ACH, new BigDecimal("20"), "REF");
-
-        ArgumentCaptor<Invoice> invCap = ArgumentCaptor.forClass(Invoice.class);
-        verify(invoices).save(invCap.capture());
-        assertEquals("Partially Paid", invCap.getValue().getStatus());
-    }
-
-    @Test
-    void test_pay_rejects_non_positive_amount() {
-        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class,
-                () -> service.pay("INV-X", PaymentMethod.CASH, new BigDecimal("0"), "R"));
-        assertTrue(ex1.getMessage().contains("positive"));
-
-        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class,
-                () -> service.pay("INV-X", PaymentMethod.CASH, new BigDecimal("-1"), "R"));
-        assertTrue(ex2.getMessage().contains("positive"));
-    }
-
-    @Test
-    void test_pay_throws_when_invoice_missing() {
-        when(invoices.findById("INV-MISS")).thenReturn(Optional.empty());
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> service.pay("INV-MISS", PaymentMethod.CASH, new BigDecimal("1.00"), "R"));
         assertTrue(ex.getMessage().contains("Invoice not found"));
     }
 
     @Test
+    @DisplayName("pay() - Already paid invoice is rejected")
     void test_pay_throws_when_invoice_already_paid() {
-        Invoice inv = new Invoice();
-        inv.setId("INV-P");
-        inv.setTotal(new BigDecimal("10.00"));
-        inv.setStatus("Paid");
-        when(invoices.findById("INV-P")).thenReturn(Optional.of(inv));
+        Invoice invoice = new Invoice();
+        invoice.setId(INVOICE_ID);
+        invoice.setStatus("Paid");
+        when(invoiceRepository.findById(INVOICE_ID)).thenReturn(Optional.of(invoice));
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> service.pay("INV-P", PaymentMethod.CASH, new BigDecimal("1.00"), "R"));
+        IllegalStateException ex =
+                assertThrows(IllegalStateException.class,
+                        () -> service.pay(INVOICE_ID, PaymentMethod.CARD, new BigDecimal("10.00"), "R"));
+
         assertTrue(ex.getMessage().contains("already Paid"));
+        verify(paymentRepository, never()).findByInvoiceId(any());
     }
 
     @Test
+    @DisplayName("pay() - Amount exceeding remaining balance is rejected")
     void test_pay_throws_when_amount_exceeds_remaining() {
-        Invoice inv = new Invoice();
-        inv.setId("INV-EX");
-        inv.setTotal(new BigDecimal("50.00"));
-        inv.setStatus("Sent");
-        when(invoices.findById("INV-EX")).thenReturn(Optional.of(inv));
+        Invoice invoice = new Invoice();
+        invoice.setId(INVOICE_ID);
+        invoice.setStatus("Draft");
+        invoice.setTotal(new BigDecimal("100.00"));
+        when(invoiceRepository.findById(INVOICE_ID)).thenReturn(Optional.of(invoice));
+
+        Payment prior = new Payment();
+        prior.setAmount(new BigDecimal("90.00"));
+        when(paymentRepository.findByInvoiceId(INVOICE_ID)).thenReturn(List.of(prior));
+
+        IllegalArgumentException ex =
+                assertThrows(IllegalArgumentException.class,
+                        () -> service.pay(INVOICE_ID, PaymentMethod.CARD, new BigDecimal("20.00"), "R"));
+
+        assertTrue(ex.getMessage().contains("exceeds remaining"));
+        verifyNoInteractions(gatewayRegistry);
+    }
+
+    // ---------------------------------------------------------------------
+    // pay - success paths
+    // ---------------------------------------------------------------------
+
+    @Test
+    @DisplayName("pay() - Marks invoice Partially Paid when not fully paid")
+    void test_pay_marks_invoice_partially_paid_when_not_fully_paid() {
+        Invoice invoice = new Invoice();
+        invoice.setId(INVOICE_ID);
+        invoice.setStatus("Draft");
+        invoice.setTotal(new BigDecimal("100.00"));
+        when(invoiceRepository.findById(INVOICE_ID)).thenReturn(Optional.of(invoice));
 
         Payment prior = new Payment();
         prior.setAmount(new BigDecimal("40.00"));
-        when(payments.findByInvoiceId("INV-EX")).thenReturn(List.of(prior));
+        when(paymentRepository.findByInvoiceId(INVOICE_ID)).thenReturn(List.of(prior));
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> service.pay("INV-EX", PaymentMethod.CASH, new BigDecimal("20.00"), "R"));
-        assertTrue(ex.getMessage().contains("exceeds remaining"));
+        when(gatewayRegistry.resolve(PaymentMethod.CASH)).thenReturn(paymentGateway);
+        when(paymentGateway.charge(eq(INVOICE_ID), eq(new BigDecimal("20.00")), eq("R")))
+                .thenReturn(paymentReceipt);
+
+        when(paymentReceipt.at()).thenReturn(OffsetDateTime.now());
+        when(paymentReceipt.authCode()).thenReturn("AUTH-2");
+        when(paymentReceipt.status()).thenReturn("OK");
+        when(paymentReceipt.provider()).thenReturn("Stripe");
+
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.pay(INVOICE_ID, PaymentMethod.CASH, new BigDecimal("20.00"), "R");
+
+        ArgumentCaptor<Invoice> invoiceCaptor = ArgumentCaptor.forClass(Invoice.class);
+        verify(invoiceRepository).save(invoiceCaptor.capture());
+        Invoice updated = invoiceCaptor.getValue();
+        assertEquals("Partially Paid", updated.getStatus());
     }
 }

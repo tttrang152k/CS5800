@@ -3,6 +3,7 @@ package com.startup.trucking.service;
 import com.startup.trucking.persistence.Document;
 import com.startup.trucking.persistence.DocumentRepository;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -14,149 +15,213 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("Document Service Unit Tests")
 class DocumentServiceTest {
 
+    private static final String LOAD_ID = "L-1";
+    private static final String DOCUMENT_ID = "DOC-1";
+    private static final String BOL = "BOL";
+    private static final String POD = "POD";
+    private static final String FILE_URL = "https://example.com/bol.pdf";
+
     @Mock
-    DocumentRepository repo;
+    DocumentRepository documentRepository;
+
+    // ---------------------------------------------------------------------
+    // upload + get
+    // ---------------------------------------------------------------------
 
     @Test
+    @DisplayName("upload() & get() - Successful upload persists document and can be retrieved")
     void test_upload_success_and_get() {
-        DocumentService svc = new DocumentService(repo);
+        DocumentService service = createService();
 
-        when(repo.save(any(Document.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(documentRepository.save(any(Document.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        String id = svc.upload("L-1", "BOL", URI.create("https://example.com/bol.pdf"));
+        String id = service.upload(LOAD_ID, BOL, URI.create(FILE_URL));
         assertNotNull(id);
 
-        // Capture what was saved
         ArgumentCaptor<Document> captor = ArgumentCaptor.forClass(Document.class);
-        verify(repo).save(captor.capture());
+        verify(documentRepository).save(captor.capture());
+
         Document saved = captor.getValue();
 
-        when(repo.findById(saved.getId())).thenReturn(Optional.of(saved));
+        when(documentRepository.findById(saved.getId())).thenReturn(Optional.of(saved));
 
-        // Assert saved fields
-        assertEquals("L-1", saved.getLoadId());
-        assertEquals("BOL", saved.getType());
+        assertEquals(LOAD_ID, saved.getLoadId());
+        assertEquals(BOL, saved.getType());
         assertEquals("Uploaded", saved.getStatus());
-        assertEquals("https://example.com/bol.pdf", saved.getFileRef());
+        assertEquals(FILE_URL, saved.getFileRef());
         assertNotNull(saved.getUploadedAt());
         assertNotNull(saved.downloadUri());
-        assertEquals(URI.create("https://example.com/bol.pdf"), saved.downloadUri());
+        assertEquals(URI.create(FILE_URL), saved.downloadUri());
 
-        // Assert get()
-        Document got = svc.get(saved.getId());
+        Document got = service.get(saved.getId());
         assertSame(saved, got);
     }
 
     @Test
+    @DisplayName("upload() - Null fileRef is rejected")
     void test_upload_rejects_null_fileRef() {
-        DocumentService svc = new DocumentService(repo);
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> svc.upload("L-1", "BOL", null));
-        assertTrue(ex.getMessage().toLowerCase().contains("fileref"));
-        verify(repo, never()).save(any());
+        DocumentService service = createService();
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.upload(LOAD_ID, BOL, null)
+        );
+
+        assertTrue(ex.getMessage().contains("fileRef required"));
+        verify(documentRepository, never()).save(any());
     }
 
     @Test
+    @DisplayName("upload() - Non BOL/POD type is rejected")
     void test_upload_rejects_non_allowed_type() {
-        DocumentService svc = new DocumentService(repo);
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> svc.upload("L-1", "OTHER", URI.create("https://x")));
+        DocumentService service = createService();
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.upload(LOAD_ID, "OTHER", URI.create("https://x"))
+        );
+
         assertTrue(ex.getMessage().contains("Only BOL/POD"));
-        verify(repo, never()).save(any());
+        verify(documentRepository, never()).save(any());
     }
 
+    // ---------------------------------------------------------------------
+    // list
+    // ---------------------------------------------------------------------
+
     @Test
+    @DisplayName("list() - Delegates to repository and returns documents")
     void test_list_delegates_to_repository() {
-        DocumentService svc = new DocumentService(repo);
+        DocumentService service = createService();
 
-        Document d1 = new Document();
-        d1.setId("DOC-1");
-        d1.setLoadId("L-1");
-        d1.setType("BOL");
-        d1.setStatus("Uploaded");
-        d1.setFileRef("https://a");
-        d1.setUploadedAt(OffsetDateTime.now());
+        Document d1 = createDocument("DOC-1", LOAD_ID, BOL, "https://a", OffsetDateTime.now());
+        Document d2 = createDocument("DOC-2", LOAD_ID, POD, "https://b",
+                OffsetDateTime.now().minusMinutes(1));
 
-        Document d2 = new Document();
-        d2.setId("DOC-2");
-        d2.setLoadId("L-1");
-        d2.setType("POD");
-        d2.setStatus("Uploaded");
-        d2.setFileRef("https://b");
-        d2.setUploadedAt(OffsetDateTime.now().minusMinutes(1));
+        when(documentRepository.findByLoadIdOrderByUploadedAtDesc(LOAD_ID))
+                .thenReturn(List.of(d1, d2));
 
-        when(repo.findByLoadIdOrderByUploadedAtDesc("L-1")).thenReturn(List.of(d1, d2));
+        List<Document> documents = service.list(LOAD_ID);
 
-        List<Document> docs = svc.list("L-1");
-        assertEquals(2, docs.size());
-        assertEquals("DOC-1", docs.get(0).getId()); // order preserved from repository
-        verify(repo, times(1)).findByLoadIdOrderByUploadedAtDesc("L-1");
+        assertEquals(2, documents.size());
+        assertEquals("DOC-1", documents.get(0).getId());
+        verify(documentRepository).findByLoadIdOrderByUploadedAtDesc(LOAD_ID);
     }
 
+    // ---------------------------------------------------------------------
+    // get
+    // ---------------------------------------------------------------------
+
     @Test
+    @DisplayName("get() - Existing document is returned")
     void test_get_returns_entity() {
-        DocumentService svc = new DocumentService(repo);
+        DocumentService service = createService();
 
-        Document d = new Document();
-        d.setId("DOC-xyz");
-        when(repo.findById("DOC-xyz")).thenReturn(Optional.of(d));
+        Document document = new Document();
+        document.setId(DOCUMENT_ID);
+        when(documentRepository.findById(DOCUMENT_ID)).thenReturn(Optional.of(document));
 
-        Document got = svc.get("DOC-xyz");
-        assertSame(d, got);
-        verify(repo).findById("DOC-xyz");
+        Document got = service.get(DOCUMENT_ID);
+
+        assertSame(document, got);
+        verify(documentRepository).findById(DOCUMENT_ID);
     }
 
     @Test
+    @DisplayName("get() - Missing document throws exception")
     void test_get_throws_when_missing() {
-        DocumentService svc = new DocumentService(repo);
-        when(repo.findById("DOC-nope")).thenReturn(Optional.empty());
+        DocumentService service = createService();
+        when(documentRepository.findById("DOC-nope")).thenReturn(Optional.empty());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> svc.get("DOC-nope"));
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.get("DOC-nope")
+        );
+
         assertTrue(ex.getMessage().contains("Document not found"));
-        verify(repo).findById("DOC-nope");
+        verify(documentRepository).findById("DOC-nope");
     }
 
+    // ---------------------------------------------------------------------
+    // updateStatus
+    // ---------------------------------------------------------------------
+
     @Test
+    @DisplayName("updateStatus() - Updates status and saves document")
     void test_updateStatus_sets_status_and_saves() {
-        DocumentService svc = new DocumentService(repo);
+        DocumentService service = createService();
 
-        Document d = new Document();
-        d.setId("DOC-1");
-        d.setStatus("Uploaded");
-        when(repo.findById("DOC-1")).thenReturn(Optional.of(d));
-        when(repo.save(any(Document.class))).thenAnswer(inv -> inv.getArgument(0));
+        Document document = new Document();
+        document.setId(DOCUMENT_ID);
+        document.setStatus("Uploaded");
 
-        svc.updateStatus("DOC-1", "Verified");
+        when(documentRepository.findById(DOCUMENT_ID)).thenReturn(Optional.of(document));
+        when(documentRepository.save(any(Document.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertEquals("Verified", d.getStatus());
-        verify(repo).save(d);
+        service.updateStatus(DOCUMENT_ID, "Verified");
+
+        assertEquals("Verified", document.getStatus());
+        verify(documentRepository).save(document);
     }
 
+    // ---------------------------------------------------------------------
+    // delete
+    // ---------------------------------------------------------------------
+
     @Test
+    @DisplayName("delete() - Existing document is removed")
     void test_delete_success() {
-        DocumentService svc = new DocumentService(repo);
-        when(repo.existsById("DOC-1")).thenReturn(true);
+        DocumentService service = createService();
+        when(documentRepository.existsById(DOCUMENT_ID)).thenReturn(true);
 
-        svc.delete("DOC-1");
+        service.delete(DOCUMENT_ID);
 
-        verify(repo).deleteById("DOC-1");
+        verify(documentRepository).deleteById(DOCUMENT_ID);
     }
 
     @Test
+    @DisplayName("delete() - Missing document throws exception")
     void test_delete_throws_when_missing() {
-        DocumentService svc = new DocumentService(repo);
-        when(repo.existsById("DOC-nope")).thenReturn(false);
+        DocumentService service = createService();
+        when(documentRepository.existsById("DOC-nope")).thenReturn(false);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> svc.delete("DOC-nope"));
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.delete("DOC-nope")
+        );
+
         assertTrue(ex.getMessage().contains("Document not found"));
-        verify(repo, never()).deleteById(anyString());
+        verify(documentRepository, never()).deleteById(anyString());
+    }
+
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
+
+    private DocumentService createService() {
+        return new DocumentService(documentRepository);
+    }
+
+    private Document createDocument(String id,
+                                    String loadId,
+                                    String type,
+                                    String fileRef,
+                                    OffsetDateTime uploadedAt) {
+        Document document = new Document();
+        document.setId(id);
+        document.setLoadId(loadId);
+        document.setType(type);
+        document.setStatus("Uploaded");
+        document.setFileRef(fileRef);
+        document.setUploadedAt(uploadedAt);
+        return document;
     }
 }

@@ -1,0 +1,818 @@
+@startuml
+title Trucking's Class UML
+
+skinparam classAttributeIconSize 0
+
+package "com.startup.trucking.domain" {
+      class Load {
+        - id : String
+        - referenceNo : String
+        - status : String
+        - rateAmount : float
+        - trackingId : String
+        --
+        - rateConfirmationRef : String
+        - driverId : String
+        - trailerId : String
+        - pickupAddress : String
+        - deliveryAddress : String
+        - pickupDate : String
+        - deliveryDate : String
+        --
+        + Load(id:String, referenceNo:String, status:String, rateAmount:float, trackingId:String,
+               rateConfirmationRef:String, driverId:String, trailerId:String,
+               pickupAddress:String, deliveryAddress:String, pickupDate:String, deliveryDate:String)
+        + updateStatus(status:String) : void
+        + getId() : String
+        + getStatus() : String
+        + getDriverId() : String
+        + getTrailerId() : String
+        + getReferenceNo() : String
+        + getPickupAddress() : String
+        + getDeliveryAddress() : String
+        + getPickupDate() : String
+        + getDeliveryDate() : String
+        + getRateAmount() : float
+        + getTrackingId() : String
+        + getRateConfirmationRef() : String
+      }
+
+      class LoadBuilder <<Builder>> {
+        - id : String
+        - referenceNo : String
+        - status : String = "Requested"
+        - rateAmount : float
+        - trackingId : String
+        --
+        - rateConfirmationRef : String
+        - driverId : String
+        - trailerId : String
+        - pickupAddress : String
+        - deliveryAddress : String
+        - pickupDate : String
+        - deliveryDate : String
+        --
+        + LoadBuilder()
+        + setId(id:String) : LoadBuilder
+        + setReferenceNo(referenceNo:String) : LoadBuilder
+        + setStatus(status:String) : LoadBuilder
+        + setRateAmount(rateAmount:float) : LoadBuilder
+        + setTrackingId(trackingId:String) : LoadBuilder
+        + setRateConfirmationRef(rateConfirmationRef:String) : LoadBuilder
+        + setDriverId(driverId:String) : LoadBuilder
+        + setTrailerId(trailerId:String) : LoadBuilder
+        + setPickupAddress(pickupAddress:String) : LoadBuilder
+        + setDeliveryAddress(deliveryAddress:String) : LoadBuilder
+        + setPickupDate(pickupDate:String) : LoadBuilder
+        + setDeliveryDate(deliveryDate:String) : LoadBuilder
+        + createLoad() : Load
+      }
+}
+
+package "com.startup.trucking.notify" {
+    interface NotificationChannel {
+        + send(to:String, message:String) : void
+      }
+
+      class EmailChannel {
+        + send(to:String, message:String) : void
+      }
+      class SmsChannel {
+        + send(to:String, message:String) : void
+      }
+      class PushChannel {
+        + send(to:String, message:String) : void
+      }
+
+      abstract class NotificationEvent <<Bridge>> {
+        # channel : NotificationChannel
+        # recipient : String
+        # customerRef : String
+        --
+        # NotificationEvent(channel:NotificationChannel, recipient:String, customerRef:String)
+        + buildMessage() : String
+        + send() : void
+      }
+
+      class LoadConfirmedEvent {
+        - loadId : String
+        --
+        + LoadConfirmedEvent(ch:NotificationChannel, to:String, customerRef:String, loadId:String)
+        + buildMessage() : String
+      }
+
+      class InvoiceCreatedEvent {
+        - invoiceId : String
+        - loadId : String
+        - total : String
+        --
+        + InvoiceCreatedEvent(ch:NotificationChannel, to:String, customerRef:String,
+                              invoiceId:String, loadId:String, total:String)
+        + buildMessage() : String
+      }
+
+      class PaymentReceivedEvent {
+        - invoiceId : String
+        - amount : String
+        - method : String
+        --
+        + PaymentReceivedEvent(ch:NotificationChannel, to:String, customerRef:String,
+                               invoiceId:String, amount:String, method:String)
+        + buildMessage() : String
+      }
+
+      class ChannelFactory <<Factory>> {
+        + get(type:ChannelType) : NotificationChannel
+      }
+
+      enum ChannelType {
+        EMAIL
+        SMS
+        PUSH
+      }
+}
+
+package "com.startup.trucking.billing" {
+    interface PaymentGateway {
+        + charge(invoiceId:String, amount:BigDecimal, reference:String) : PaymentReceipt
+        + name() : String
+    }
+    class AchGatewayAdapter <<Adapter>> {
+        + charge(invoiceId:String, amount:BigDecimal, reference:String) : PaymentReceipt
+        + name() : String
+    }
+    class CardGatewayAdapter <<Adapter>> {
+        + charge(invoiceId:String, amount:BigDecimal, reference:String) : PaymentReceipt
+        + name() : String
+    }
+    class CashGatewayAdapter <<Adapter>> {
+        + charge(invoiceId:String, amount:BigDecimal, reference:String) : PaymentReceipt
+        + name() : String
+    }
+    class PaymentGatewayRegistry {
+        - map : Map<PaymentMethod, PaymentGateway>
+        + PaymentGatewayRegistry()
+        + resolve(method:PaymentMethod) : PaymentGateway
+    }
+    enum PaymentMethod {
+        CARD
+        ACH
+        CASH
+        CHECK
+    }
+    class PaymentReceipt <<record>> {
+        + provider : String
+        + authCode : String
+        + amount : BigDecimal
+        + at : OffsetDateTime
+        + status : String
+    }
+}
+
+package "com.startup.trucking.billing.tax" {
+
+    interface TaxStrategy <<Strategy>> {
+        + computeTax(load:Load, subtotal:BigDecimal) : BigDecimal
+        + name() : String
+    }
+
+    class ByStateTaxStrategy {
+        - RATES : Map<String, BigDecimal>
+        --
+        + computeTax(load:Load, subtotal:BigDecimal) : BigDecimal
+        + name() : String
+    }
+
+    class FlatRateTaxStrategy {
+        - rate : BigDecimal
+        --
+        + FlatRateTaxStrategy(rate:BigDecimal)
+        + computeTax(load:Load, subtotal:BigDecimal) : BigDecimal
+        + name() : String
+    }
+
+    class NoTaxStrategy {
+        + computeTax(load:Load, subtotal:BigDecimal) : BigDecimal
+        + name() : String
+    }
+
+    class TaxStrategyResolver <<Strategy>> {
+        - strategies : List<TaxStrategy>
+        - defaultStrategy : TaxStrategy
+        --
+        + TaxStrategyResolver(strategies:List<TaxStrategy>, defaultStrategy:NoTaxStrategy)
+        + compute(load:Load, subtotal:BigDecimal) : BigDecimal
+    }
+}
+
+package "com.startup.trucking.persistence" {
+
+    class Document {
+        - id : String
+        - loadId : String
+        - type : String
+        - status : String
+        - fileRef : String
+        - uploadedAt : OffsetDateTime
+        --
+        + getId() : String
+        + setId(id:String)
+        + getLoadId() : String
+        + setLoadId(loadId:String)
+        + getType() : String
+        + setType(type:String)
+        + getStatus() : String
+        + setStatus(status:String)
+        + getFileRef() : String
+        + setFileRef(fileRef:String)
+        + getUploadedAt() : OffsetDateTime
+        + setUploadedAt(uploadedAt:OffsetDateTime)
+        + downloadUri() : URI
+    }
+
+    interface DocumentRepository {
+        + findByLoadIdOrderByUploadedAtDesc(loadId:String) : List<Document>
+    }
+
+    class Invoice {
+        - id : String
+        - loadId : String
+        - issuedAt : OffsetDateTime
+        - status : String
+        - subtotal : BigDecimal
+        - tax : BigDecimal
+        - total : BigDecimal
+        - customerRef : String
+        --
+        + getId() : String
+        + setId(id:String)
+        + getLoadId() : String
+        + setLoadId(loadId:String)
+        + getIssuedAt() : OffsetDateTime
+        + setIssuedAt(issuedAt:OffsetDateTime)
+        + getStatus() : String
+        + setStatus(status:String)
+        + getSubtotal() : BigDecimal
+        + setSubtotal(subtotal:BigDecimal)
+        + getTax() : BigDecimal
+        + setTax(tax:BigDecimal)
+        + getTotal() : BigDecimal
+        + setTotal(total:BigDecimal)
+        + getCustomerRef() : String
+        + setCustomerRef(customerRef:String)
+    }
+
+    interface InvoiceRepository {
+        + findByLoadId(loadId:String) : Optional<Invoice>
+        + findByStatus(status:String) : List<Invoice>
+    }
+
+    class LoadEntity {
+        - id : String
+        - referenceNo : String
+        - status : String
+        - rateAmount : BigDecimal
+        - trackingId : String
+        - rateConfirmationRef : String
+        - driverId : String
+        - trailerId : String
+        - pickupAddress : String
+        - deliveryAddress : String
+        - pickupDate : String
+        - deliveryDate : String
+        --
+        + getId() : String
+        + setId(String) : void
+        + getReferenceNo() : String
+        + setReferenceNo(String) : void
+        + getStatus() : String
+        + setStatus(String) : void
+        + getRateAmount() : BigDecimal
+        + setRateAmount(BigDecimal) : void
+        + getTrackingId() : String
+        + setTrackingId(String) : void
+        + getRateConfirmationRef() : String
+        + setRateConfirmationRef(String) : void
+        + getDriverId() : String
+        + setDriverId(String) : void
+        + getTrailerId() : String
+        + setTrailerId(String) : void
+        + getPickupAddress() : String
+        + setPickupAddress(String) : void
+        + getDeliveryAddress() : String
+        + setDeliveryAddress(String) : void
+        + getPickupDate() : String
+        + setPickupDate(String) : void
+        + getDeliveryDate() : String
+        + setDeliveryDate(String) : void
+    }
+
+    class LoadMapper {
+        - LoadMapper()
+        --
+        + toDomain(e:LoadEntity) : Load
+        + toEntity(l:Load) : LoadEntity
+    }
+
+    interface LoadRepository {
+        + findById(id:String) : Optional<LoadEntity>
+        + findAll() : List<LoadEntity>
+        + save(entity:LoadEntity) : LoadEntity
+        + deleteById(id:String) : void
+        --
+        + findByReferenceNoContainingIgnoreCase(referenceNo:String) : List<LoadEntity>
+        + findByStatusIgnoreCase(status:String) : List<LoadEntity>
+    }
+
+    class Notification {
+        - id : String
+        - customerRef : String
+        - type : String
+        - channel : String
+        - recipient : String
+        - message : String
+        - refType : String
+        - refId : String
+        - createdAt : OffsetDateTime
+        --
+        + getId() : String
+        + setId(String) : void
+        + getCustomerRef() : String
+        + setCustomerRef(String) : void
+        + getType() : String
+        + setType(String) : void
+        + getChannel() : String
+        + setChannel(String) : void
+        + getRecipient() : String
+        + setRecipient(String) : void
+        + getMessage() : String
+        + setMessage(String) : void
+        + getRefType() : String
+        + setRefType(String) : void
+        + getRefId() : String
+        + setRefId(String) : void
+        + getCreatedAt() : OffsetDateTime
+        + setCreatedAt(OffsetDateTime) : void
+    }
+
+    interface NotificationRepository {
+        + findByCustomerRefOrderByCreatedAtDesc(customerRef:String) : List<Notification>
+    }
+
+    class Payment {
+        - id : String
+        - invoiceId : String
+        - amount : BigDecimal
+        - method : String
+        - paidAt : OffsetDateTime
+        - reference : String
+        - status : String
+        - provider : String
+        - authCode : String
+        --
+        + getId() : String
+        + setId(String) : void
+        + getInvoiceId() : String
+        + setInvoiceId(String) : void
+        + getAmount() : BigDecimal
+        + setAmount(BigDecimal) : void
+        + getMethod() : String
+        + setMethod(String) : void
+        + getPaidAt() : OffsetDateTime
+        + setPaidAt(OffsetDateTime) : void
+        + getReference() : String
+        + setReference(String) : void
+        + getStatus() : String
+        + setStatus(String) : void
+        + getProvider() : String
+        + setProvider(String) : void
+        + getAuthCode() : String
+        + setAuthCode(String) : void
+    }
+
+    interface PaymentRepository {
+        + findByInvoiceId(invoiceId:String) : List<Payment>
+    }
+}
+
+package "com.startup.trucking.service" {
+    class DocumentService {
+        - documentRepository : DocumentRepository
+        - ALLOWED_TYPES : Set<String>
+        --
+        + DocumentService(documentRepository:DocumentRepository)
+        + upload(loadId:String, type:String, fileRef:URI) : String
+        + list(loadId:String) : List<Document>
+        + get(documentId:String) : Document
+        + updateStatus(documentId:String, status:String) : void
+        + delete(documentId:String) : void
+        --
+        - validateUploadArguments(type:String, fileRef:URI) : void
+        - generateDocumentId() : String
+        - buildDocument(loadId:String, type:String, fileRef:URI, id:String) : Document
+    }
+
+    class LoadService {
+        - repository : LoadRepository
+        - sortResolver : LoadSortStrategyResolver
+        --
+        + LoadService(repository:LoadRepository, sortResolver:LoadSortStrategyResolver)
+        + getLoad(loadId:String) : Load
+        + putLoad(load:Load) : void
+        + listLoads() : Collection<Load>
+        + listLoadsSorted(sortKey:String) : List<Load>
+        + updateStatus(loadId:String, status:String) : void
+        + searchLoads(query:String, field:String) : List<Load>
+        --
+        - searchById(id:String) : List<Load>
+        - searchByCustomer(customerQuery:String) : List<Load>
+        - searchByStatus(status:String) : List<Load>
+        - searchAcrossAllFields(query:String) : List<Load>
+        - normalizeField(field:String) : String
+        - mapEntitiesToDomain(entities:List<LoadEntity>) : List<Load>
+        - deduplicateById(entities:List<LoadEntity>) : List<LoadEntity>
+        - isBlank(value:String) : boolean
+    }
+
+    class InvoiceService {
+        - invoiceRepository : InvoiceRepository
+        - loadService : LoadService
+        - invoiceSequence : AtomicInteger
+        - taxResolver : TaxStrategyResolver
+        --
+        + InvoiceService(invoiceRepository:InvoiceRepository, loadService:LoadService, taxResolver:TaxStrategyResolver)
+        + findByLoadId(loadId:String) : Optional<Invoice>
+        + list() : List<Invoice>
+        + get(id:String) : Invoice
+        + createFromLoad(loadId:String) : Invoice
+        + createManual(loadId:String, amount:float) : Invoice
+        + markSent(invoiceId:String) : void
+        --
+        - initializeSequence(existingInvoices:List<Invoice>) : AtomicInteger
+        - parseInvoiceNumberSafely(id:String) : int
+        - nextInvoiceId() : String
+        - formatInvoiceId(sequence:int) : String
+        - ensureInvoiceCanBeCreated(loadId:String, load:Load) : void
+        - createInvoice(loadId:String, load:Load, subtotal:BigDecimal) : Invoice
+    }
+
+    class NotificationService {
+          - channelFactory : ChannelFactory
+          - notificationRepository : NotificationRepository
+          --
+          + NotificationService(channelFactory: ChannelFactory, notificationRepository: NotificationRepository)
+          + sendLoadConfirmed(channelType: ChannelType, recipient: String, customerRef: String, loadId: String) : void
+          + sendInvoiceCreated(channelType: ChannelType, recipient: String, customerRef: String,
+                               invoiceId: String, loadId: String, total: String) : void
+          + sendPaymentReceived(channelType: ChannelType, recipient: String, customerRef: String,
+                                invoiceId: String, amount: String, method: String) : void
+          --
+          - sendAndRecord(type: String, refType: String, refId: String,
+                          channelType: ChannelType, recipient: String,
+                          customerRef: String, event: NotificationEvent) : void
+          - createNotification(type: String, channelName: String, recipient: String,
+                               customerRef: String, refType: String, refId: String,
+                               message: String) : Notification
+    }
+
+    class PaymentService {
+          - paymentRepository : PaymentRepository
+          - invoiceRepository : InvoiceRepository
+          - gatewayRegistry : PaymentGatewayRegistry
+          --
+          + PaymentService(paymentRepository: PaymentRepository, invoiceRepository: InvoiceRepository, gatewayRegistry: PaymentGatewayRegistry)
+          + listForInvoice(invoiceId: String) : List<Payment>
+          + get(paymentId: String) : Payment
+          + pay(invoiceId: String, method: PaymentMethod, amount: BigDecimal, reference: String) : Payment
+          --
+          - validateAmount(amount: BigDecimal) : void
+          - loadInvoice(invoiceId: String) : Invoice
+          - ensureInvoiceNotPaid(invoice: Invoice) : void
+          - calculatePaidSoFar(invoiceId: String) : BigDecimal
+          - calculateRemaining(total: BigDecimal, paidSoFar: BigDecimal) : BigDecimal
+          - buildPayment(invoiceId: String, method: PaymentMethod, amount: BigDecimal, receipt: PaymentReceipt) : Payment
+          - updateInvoiceStatus(invoice: Invoice, totalPaid: BigDecimal) : void
+    }
+}
+
+package "com.startup.trucking.service.sort" {
+
+    interface LoadSortStrategy <<Strategy>> {
+        + sort(loads:List<Load>) : List<Load>
+        + name() : String
+    }
+
+    class CustomerNameSortStrategy {
+        + sort(loads:List<Load>) : List<Load>
+        + name() : String
+    }
+
+    class RateAmountAscSortStrategy {
+        + sort(loads:List<Load>) : List<Load>
+        + name() : String
+    }
+
+    class RateAmountDescSortStrategy {
+        + sort(loads:List<Load>) : List<Load>
+        + name() : String
+    }
+
+    class PickupDateSortStrategy {
+        + sort(loads:List<Load>) : List<Load>
+        + name() : String
+    }
+
+    class DeliveryDateSortStrategy {
+        + sort(loads:List<Load>) : List<Load>
+        + name() : String
+    }
+
+    class LoadSortStrategyResolver <<Strategy>> {
+        - strategies : List<LoadSortStrategy>
+        - defaultStrategy : LoadSortStrategy
+        --
+        + LoadSortStrategyResolver(strategies:List<LoadSortStrategy>, defaultStrategy:CustomerNameSortStrategy)
+        + sort(loads:List<Load>, sortKey:String) : List<Load>
+    }
+}
+
+
+package "com.startup.trucking.util" {
+    class PaymentIdGenerator <<Singleton>> {
+      - instance: PaymentIdGenerator
+      + getInstance(): PaymentIdGenerator
+      + nextId(): String
+    }
+}
+
+package "com.startup.trucking.web" {
+    class BookingForm {
+      - id : String
+      - referenceNo : String
+      - status : String = "Requested"
+      - rateAmount : float
+      - trackingId : String
+      - rateConfirmationRef : String
+      - driverId : String
+      - trailerId : String
+      - pickupAddress : String
+      - deliveryAddress : String
+      - pickupDate : String
+      - deliveryDate : String
+
+      + getId() : String
+      + setId(id: String) : void
+      + getReferenceNo() : String
+      + setReferenceNo(referenceNo: String) : void
+      + getStatus() : String
+      + setStatus(status: String) : void
+      + getRateAmount() : float
+      + setRateAmount(rateAmount: float) : void
+      + getTrackingId() : String
+      + setTrackingId(trackingId: String) : void
+      + getRateConfirmationRef() : String
+      + setRateConfirmationRef(rateConfirmationRef: String) : void
+      + getDriverId() : String
+      + setDriverId(driverId: String) : void
+      + getTrailerId() : String
+      + setTrailerId(trailerId: String) : void
+      + getPickupAddress() : String
+      + setPickupAddress(pickupAddress: String) : void
+      + getDeliveryAddress() : String
+      + setDeliveryAddress(deliveryAddress: String) : void
+      + getPickupDate() : String
+      + setPickupDate(pickupDate: String) : void
+      + getDeliveryDate() : String
+      + setDeliveryDate(deliveryDate: String) : void
+    }
+
+    class LoadRow {
+      + id : String
+      + customerName : String
+      + status : String
+      + rateAmount : float
+      + driver : String
+      + pickupAddress : String
+      + deliveryAddress : String
+      + pickupDate : String
+      + deliveryDate : String
+      + documentUrl : String
+      + invoiced : boolean
+      + invoiceId : String
+
+      + LoadRow(id: String, customerName: String, status: String, rateAmount: float,
+                driver: String, pickupAddress: String, deliveryAddress: String,
+                pickupDate: String, deliveryDate: String, documentUrl: String,
+                invoiced: boolean, invoiceId: String)
+    }
+
+    class CustomerController {
+        - loadService : LoadService
+        - invoiceService : InvoiceService
+        - notificationRepository : NotificationRepository
+        --
+        + CustomerController(loadService:LoadService, invoiceService:InvoiceService,
+                             notificationRepository:NotificationRepository)
+        + detail(customerRef:String, model:Model) : String
+        --
+        - findLoadsForCustomer(customerRef:String) : List<Load>
+        - findInvoicesForCustomer(customerRef:String) : List<Invoice>
+    }
+
+    class InvoiceController {
+      - invoiceService : InvoiceService
+      - loadService : LoadService
+      - paymentService : PaymentService
+      - notificationService : NotificationService
+      --
+      + InvoiceController(invoiceService:InvoiceService,
+                          loadService:LoadService,
+                          paymentService:PaymentService,
+                          notificationService:NotificationService)
+      + list(model:Model, toast:String) : String
+      + createFromLoad(loadId:String, channel:String,
+                       recipient:String, ra:RedirectAttributes) : String
+      + createManualOrFromLoad(loadId:String, amount:BigDecimal,
+                               channel:String, recipient:String,
+                               ra:RedirectAttributes) : String
+      + send(id:String, ra:RedirectAttributes) : String
+      + payPage(id:String, model:Model, error:String) : String
+      + pay(id:String, method:String, amount:BigDecimal,
+            channel:String, recipient:String,
+            ra:RedirectAttributes) : String
+      + confirm(id:String, paymentId:String, model:Model) : String
+      --
+      + <<record>> Row
+      --
+      - buildInvoiceRows(invoices:List<Invoice>) : List<Row>
+      - findDeliveredLoadsWithoutInvoice(invoices:List<Invoice>) : List<Load>
+      - createInvoice(loadId:String, amount:BigDecimal) : Invoice
+      - notifyInvoiceCreatedIfRequested(invoice:Invoice,
+                                        channel:String,
+                                        recipient:String,
+                                        ra:RedirectAttributes) : void
+      - notifyPaymentReceivedIfRequested(invoiceId:String,
+                                         amount:BigDecimal,
+                                         method:String,
+                                         channel:String,
+                                         recipient:String,
+                                         ra:RedirectAttributes) : void
+    }
+
+
+    class LoadController {
+        - loadService : LoadService
+        - documentService : DocumentService
+        - invoiceService : InvoiceService
+        - notificationService : NotificationService
+        --
+        + LoadController(loadService:LoadService,
+                         documentService:DocumentService,
+                         invoiceService:InvoiceService,
+                         notificationService:NotificationService)
+        + listLoads(sortKey:String, model:Model) : String
+        + loadDetail(id:String, model:Model, toast:String) : String
+        + dispatchLoad(id:String, redirectAttributes:RedirectAttributes) : String
+        + deliverLoad(id:String, redirectAttributes:RedirectAttributes) : String
+        + changeStatus(id:String, status:String, redirectAttributes:RedirectAttributes) : String
+        + notifyCustomer(id:String, channel:String, recipient:String,
+                         redirectAttributes:RedirectAttributes) : String
+        + uploadDocument(id:String, type:String, url:String,
+                         redirectAttributes:RedirectAttributes) : String
+        + newLoadForm(model:Model) : String
+        + createLoad(form:BookingForm, redirectAttributes:RedirectAttributes) : String
+    }
+
+    class NotificationController {
+        - notificationService : NotificationService
+        --
+        + NotificationController(notificationService:NotificationService)
+        + notifyLoadConfirmed(loadId:String, customerRef:String, channel:String,
+                              recipient:String, redirectAttributes:RedirectAttributes) : String
+        + notifyInvoiceCreated(invoiceId:String, loadId:String, customerRef:String, total:String,
+                               channel:String, recipient:String,
+                               redirectAttributes:RedirectAttributes) : String
+        + notifyPaymentReceived(invoiceId:String, customerRef:String, amount:String, method:String,
+                                channel:String, recipient:String,
+                                redirectAttributes:RedirectAttributes) : String
+    }
+
+    class SearchController {
+        - loadService : LoadService
+        --
+        + SearchController(loadService:LoadService)
+        + searchLoads(query:String, field:String, model:Model) : String
+      }
+}
+
+' ============ Relationships ============
+' domain
+LoadBuilder --> Load : creates
+
+' notify
+NotificationEvent o--> NotificationChannel : uses
+LoadConfirmedEvent --|> NotificationEvent
+InvoiceCreatedEvent --|> NotificationEvent
+PaymentReceivedEvent --|> NotificationEvent
+EmailChannel ..|> NotificationChannel
+SmsChannel ..|> NotificationChannel
+PushChannel ..|> NotificationChannel
+ChannelFactory --> NotificationChannel : creates
+ChannelFactory --> ChannelType
+
+' billing
+AchGatewayAdapter ..|> PaymentGateway
+CardGatewayAdapter ..|> PaymentGateway
+CashGatewayAdapter ..|> PaymentGateway
+PaymentGatewayRegistry --> PaymentGateway : resolves
+PaymentGatewayRegistry --> PaymentMethod
+PaymentGateway --> PaymentReceipt : returns
+
+' billing.tax
+ByStateTaxStrategy ..|> TaxStrategy
+FlatRateTaxStrategy ..|> TaxStrategy
+NoTaxStrategy ..|> TaxStrategy
+TaxStrategyResolver --> TaxStrategy : uses
+TaxStrategyResolver --> Load : reads
+
+' persistence
+DocumentRepository ..|> JpaRepository
+InvoiceRepository ..|> JpaRepository
+LoadRepository ..|> JpaRepository
+NotificationRepository ..|> JpaRepository
+PaymentRepository ..|> JpaRepository
+
+DocumentRepository --> Document
+InvoiceRepository --> Invoice
+LoadRepository --> LoadEntity
+NotificationRepository --> Notification
+PaymentRepository --> Payment
+
+LoadMapper --> LoadEntity : maps
+LoadMapper --> Load : maps
+Invoice --> Load : refers to
+Payment --> Invoice : refers to
+Document --> Load : refers to
+Notification --> Load : may refer
+Notification --> Invoice : may refer
+Notification --> Payment : may refer
+
+' service
+DocumentService --> DocumentRepository
+
+
+InvoiceService --> InvoiceRepository
+InvoiceService --> LoadService
+InvoiceService --> TaxStrategyResolver
+
+LoadService --> LoadRepository
+
+NotificationService --> NotificationRepository
+
+PaymentService --> PaymentRepository
+PaymentService --> InvoiceRepository
+PaymentService --> PaymentIdGenerator
+
+' sort
+CustomerNameSortStrategy ..|> LoadSortStrategy
+RateAmountAscSortStrategy ..|> LoadSortStrategy
+RateAmountDescSortStrategy ..|> LoadSortStrategy
+PickupDateSortStrategy ..|> LoadSortStrategy
+DeliveryDateSortStrategy ..|> LoadSortStrategy
+
+LoadSortStrategyResolver --> LoadSortStrategy : uses
+LoadSortStrategyResolver --> Load : reads
+LoadService --> LoadSortStrategyResolver
+
+
+' web controllers
+BookingForm --> LoadController : used by
+
+LoadRow --> LoadController : used by
+
+CustomerController --> LoadService
+CustomerController --> InvoiceService
+CustomerController --> Notification
+
+InvoiceController --> InvoiceService
+InvoiceController --> LoadService
+InvoiceController --> PaymentService
+InvoiceController --> NotificationService
+InvoiceController --> Payment
+InvoiceController --> Invoice
+InvoiceController --> Load
+
+LoadController --> LoadService
+LoadController --> DocumentService
+LoadController --> InvoiceService
+LoadController --> NotificationService
+LoadController --> BookingForm
+LoadController --> Load
+LoadController --> Document
+LoadController --> Invoice
+
+NotificationController --> NotificationService
+
+SearchController --> LoadService
+
+@enduml

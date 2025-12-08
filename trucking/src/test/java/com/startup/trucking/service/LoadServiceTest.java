@@ -5,8 +5,11 @@ import com.startup.trucking.persistence.LoadEntity;
 import com.startup.trucking.persistence.LoadRepository;
 import com.startup.trucking.service.sort.LoadSortStrategyResolver;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -17,253 +20,307 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("Load Service Unit Tests")
 class LoadServiceTest {
 
+    private static final String LOAD_ID = "L-1";
+    private static final String CUSTOMER_ACME = "ACME";
+    private static final String STATUS_REQUESTED = "Requested";
+    private static final String STATUS_DELIVERED = "Delivered";
+
     @Mock
-    LoadRepository repo;
+    LoadRepository loadRepository;
 
     @Mock
     LoadSortStrategyResolver sortResolver;
 
     @InjectMocks
-    LoadService service;
+    LoadService loadService;
+
+    // ---------------------------------------------------------------------
+    // getLoad
+    // ---------------------------------------------------------------------
 
     @Test
-    void test_getLoad_found_mapsToDomain() {
-        LoadEntity e = new LoadEntity();
-        e.setId("L-1");
-        e.setReferenceNo("ACME");
-        e.setStatus("Requested");
-        e.setRateAmount(new BigDecimal("100.00"));
-        when(repo.findById("L-1")).thenReturn(Optional.of(e));
+    @DisplayName("getLoad() - Existing load is mapped to domain object")
+    void test_getLoad_whenLoadExists_returnsDomainLoad() {
+        LoadEntity entity = createLoadEntity(LOAD_ID, CUSTOMER_ACME, STATUS_REQUESTED, "100.00");
+        when(loadRepository.findById(LOAD_ID)).thenReturn(Optional.of(entity));
 
-        Load d = service.getLoad("L-1");
-        assertEquals("L-1", d.getId());
-        assertEquals("ACME", d.getReferenceNo());
-        assertEquals("Requested", d.getStatus());
-        assertEquals(100.0f, d.getRateAmount(), 0.0001);
+        Load load = loadService.getLoad(LOAD_ID);
+
+        assertEquals(LOAD_ID, load.getId());
+        assertEquals(CUSTOMER_ACME, load.getReferenceNo());
+        assertEquals(STATUS_REQUESTED, load.getStatus());
+        assertEquals(100.0f, load.getRateAmount(), 0.0001);
     }
 
     @Test
-    void test_getLoad_notFound_throws() {
-        when(repo.findById("missing")).thenReturn(Optional.empty());
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> service.getLoad("missing"));
-        assertTrue(ex.getMessage().contains("Load not found"));
+    @DisplayName("getLoad() - Missing load throws exception")
+    void test_getLoad_whenMissing_throwsException() {
+        when(loadRepository.findById("missing")).thenReturn(Optional.empty());
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> loadService.getLoad("missing")
+        );
+
+        assertTrue(exception.getMessage().contains("Load not found"));
     }
 
+    // ---------------------------------------------------------------------
+    // putLoad
+    // ---------------------------------------------------------------------
+
     @Test
-    void test_putLoad_saves_entity() {
-        Load load = new Load("L-2", "ACME", "Requested", 150f, "TRK", "RC", "EMP", "TRL",
-                "PU", "DEL", "2025-01-01", "2025-01-02");
+    @DisplayName("putLoad() - Valid load is saved as entity")
+    void test_putLoad_whenValid_savesEntity() {
+        Load load = new Load(
+                "L-2", CUSTOMER_ACME, STATUS_REQUESTED, 150f,
+                "TRK", "RC", "EMP", "TRL",
+                "PU", "DEL", "2025-01-01", "2025-01-02"
+        );
 
-        service.putLoad(load);
+        loadService.putLoad(load);
 
-        ArgumentCaptor<LoadEntity> cap = ArgumentCaptor.forClass(LoadEntity.class);
-        verify(repo).save(cap.capture());
-        LoadEntity saved = cap.getValue();
+        ArgumentCaptor<LoadEntity> entityCaptor = ArgumentCaptor.forClass(LoadEntity.class);
+        verify(loadRepository).save(entityCaptor.capture());
+
+        LoadEntity saved = entityCaptor.getValue();
         assertEquals("L-2", saved.getId());
-        assertEquals("ACME", saved.getReferenceNo());
-        assertEquals("Requested", saved.getStatus());
+        assertEquals(CUSTOMER_ACME, saved.getReferenceNo());
+        assertEquals(STATUS_REQUESTED, saved.getStatus());
         assertEquals(new BigDecimal("150.00"), saved.getRateAmount());
     }
 
     @Test
-    void test_putLoad_rejects_null_or_blank_id() {
-        IllegalArgumentException ex1 = assertThrows(IllegalArgumentException.class,
-                () -> service.putLoad(null));
-        assertTrue(ex1.getMessage().contains("load.id"));
+    @DisplayName("putLoad() - Null or blank id is rejected")
+    void test_putLoad_whenNullOrBlankId_throwsException() {
+        IllegalArgumentException nullLoadException = assertThrows(
+                IllegalArgumentException.class,
+                () -> loadService.putLoad(null)
+        );
+        assertTrue(nullLoadException.getMessage().contains("load.id"));
 
-        Load bad = new Load("", null, "Requested", 0f,
-                null, null, null, null, null, null, null, null);
-        IllegalArgumentException ex2 = assertThrows(IllegalArgumentException.class,
-                () -> service.putLoad(bad));
-        assertTrue(ex2.getMessage().contains("load.id"));
+        Load badLoad = new Load(
+                "", null, STATUS_REQUESTED, 0f,
+                null, null, null, null,
+                null, null, null, null
+        );
+
+        IllegalArgumentException blankIdException = assertThrows(
+                IllegalArgumentException.class,
+                () -> loadService.putLoad(badLoad)
+        );
+        assertTrue(blankIdException.getMessage().contains("load.id"));
     }
 
-    @Test
-    void test_listLoads_mapsAll() {
-        LoadEntity e1 = new LoadEntity(); e1.setId("L-1"); e1.setStatus("Requested");
-        LoadEntity e2 = new LoadEntity(); e2.setId("L-2"); e2.setStatus("Delivered");
-        when(repo.findAll()).thenReturn(List.of(e1, e2));
+    // ---------------------------------------------------------------------
+    // listLoads
+    // ---------------------------------------------------------------------
 
-        var list = service.listLoads();
-        assertEquals(2, list.size());
-        assertEquals("L-1", list.iterator().next().getId());
+    @Test
+    @DisplayName("listLoads() - Returns all domain loads")
+    void test_listLoads_returnsAllDomainLoads() {
+        LoadEntity first = createLoadEntity("L-1", "First", STATUS_REQUESTED, "10.00");
+        LoadEntity second = createLoadEntity("L-2", "Second", STATUS_DELIVERED, "20.00");
+        when(loadRepository.findAll()).thenReturn(List.of(first, second));
+
+        var loads = loadService.listLoads();
+
+        assertEquals(2, loads.size());
+        assertEquals("L-1", loads.iterator().next().getId());
     }
 
-    @Test
-    void test_updateStatus_updates_and_saves() {
-        LoadEntity e = new LoadEntity();
-        e.setId("L-3");
-        e.setStatus("Requested");
-        when(repo.findById("L-3")).thenReturn(Optional.of(e));
-
-        service.updateStatus("L-3", "Dispatched");
-
-        assertEquals("Dispatched", e.getStatus());
-        verify(repo).save(e);
-    }
+    // ---------------------------------------------------------------------
+    // listLoadsSorted
+    // ---------------------------------------------------------------------
 
     @Test
-    void test_updateStatus_throws_when_missing() {
-        when(repo.findById("nope")).thenReturn(Optional.empty());
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> service.updateStatus("nope", "Delivered"));
-        assertTrue(ex.getMessage().contains("Load not found"));
-    }
+    @DisplayName("listLoadsSorted() - Delegates to sort resolver and returns sorted list")
+    void test_listLoadsSorted_delegatesToSortResolver_andReturnsSortedList() {
+        LoadEntity first = createLoadEntity("L-1", "First", STATUS_REQUESTED, "100.00");
+        LoadEntity second = createLoadEntity("L-2", "Second", STATUS_REQUESTED, "200.00");
+        when(loadRepository.findAll()).thenReturn(List.of(first, second));
 
-    @Test
-    void test_listLoadsSorted_uses_sortResolver_and_returns_sorted_list() {
-        LoadEntity e1 = new LoadEntity();
-        e1.setId("L-1");
-        e1.setReferenceNo("ACME");
-        e1.setStatus("Requested");
-        e1.setRateAmount(new BigDecimal("100.00"));
+        Load domainFirst = createDomainLoad("L-1", "First", STATUS_REQUESTED, 100f);
+        Load domainSecond = createDomainLoad("L-2", "Second", STATUS_REQUESTED, 200f);
 
-        LoadEntity e2 = new LoadEntity();
-        e2.setId("L-2");
-        e2.setReferenceNo("BETA");
-        e2.setStatus("Requested");
-        e2.setRateAmount(new BigDecimal("200.00"));
-
-        when(repo.findAll()).thenReturn(List.of(e1, e2));
-
-        Load d1 = new Load("L-1", "ACME", "Requested", 100f,
-                null, null, null, null, null, null, null, null);
-        Load d2 = new Load("L-2", "BETA", "Requested", 200f,
-                null, null, null, null, null, null, null, null);
-        
-        List<Load> sorted = List.of(d2, d1);
+        List<Load> sorted = List.of(domainSecond, domainFirst); // pretend sorted desc
         when(sortResolver.sort(anyList(), eq("RateAmountDesc"))).thenReturn(sorted);
 
-        List<Load> result = service.listLoadsSorted("RateAmountDesc");
+        List<Load> result = loadService.listLoadsSorted("RateAmountDesc");
 
         assertSame(sorted, result);
-        verify(repo).findAll();
+        verify(loadRepository).findAll();
 
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<Load>> captor = ArgumentCaptor.forClass(List.class);
-        verify(sortResolver).sort(captor.capture(), eq("RateAmountDesc"));
+        ArgumentCaptor<List<Load>> loadsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(sortResolver).sort(loadsCaptor.capture(), eq("RateAmountDesc"));
 
-        List<Load> passedToResolver = captor.getValue();
+        List<Load> passedToResolver = loadsCaptor.getValue();
         assertEquals(2, passedToResolver.size());
         assertEquals("L-1", passedToResolver.get(0).getId());
         assertEquals("L-2", passedToResolver.get(1).getId());
     }
 
-    @Test
-    void test_searchLoads_returns_empty_list_when_query_blank() {
-        List<Load> result1 = service.searchLoads(null, "id");
-        List<Load> result2 = service.searchLoads("   ", "customer");
+    // ---------------------------------------------------------------------
+    // updateStatus
+    // ---------------------------------------------------------------------
 
-        assertTrue(result1.isEmpty());
-        assertTrue(result2.isEmpty());
-        verifyNoInteractions(sortResolver);
-        verifyNoInteractions(repo);
+    @Test
+    @DisplayName("updateStatus() - Existing load is updated and saved")
+    void test_updateStatus_whenLoadExists_updatesEntityAndSaves() {
+        LoadEntity entity = createLoadEntity("L-3", CUSTOMER_ACME, STATUS_REQUESTED, "50.00");
+        when(loadRepository.findById("L-3")).thenReturn(Optional.of(entity));
+
+        loadService.updateStatus("L-3", STATUS_DELIVERED);
+
+        assertEquals(STATUS_DELIVERED, entity.getStatus());
+        verify(loadRepository).save(entity);
     }
 
     @Test
-    void test_searchLoads_by_id_returns_single_load_when_found() {
-        LoadEntity e = new LoadEntity();
-        e.setId("L-100");
-        e.setReferenceNo("ACME");
-        e.setStatus("Delivered");
-        e.setRateAmount(new BigDecimal("999.99"));
+    @DisplayName("updateStatus() - Missing load throws exception")
+    void test_updateStatus_whenMissing_throwsException() {
+        when(loadRepository.findById("nope")).thenReturn(Optional.empty());
 
-        when(repo.findById("L-100")).thenReturn(Optional.of(e));
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> loadService.updateStatus("nope", STATUS_DELIVERED)
+        );
 
-        List<Load> result = service.searchLoads("L-100", "id");
+        assertTrue(exception.getMessage().contains("Load not found"));
+    }
+
+    // ---------------------------------------------------------------------
+    // searchLoads
+    // ---------------------------------------------------------------------
+
+    @Test
+    @DisplayName("searchLoads() - Blank query returns empty list and skips repository calls")
+    void test_searchLoads_whenQueryBlank_returnsEmptyAndSkipsRepository() {
+        assertTrue(loadService.searchLoads(null, "id").isEmpty());
+        assertTrue(loadService.searchLoads("   ", "customer").isEmpty());
+
+        verifyNoInteractions(loadRepository);
+        verifyNoInteractions(sortResolver);
+    }
+
+    @Test
+    @DisplayName("searchLoads() - Field 'id' returns single result when present")
+    void test_searchLoads_whenFieldId_returnsSingleResult() {
+        LoadEntity entity = createLoadEntity("L-100", CUSTOMER_ACME, STATUS_DELIVERED, "999.99");
+        when(loadRepository.findById("L-100")).thenReturn(Optional.of(entity));
+
+        List<Load> result = loadService.searchLoads("L-100", "id");
 
         assertEquals(1, result.size());
-        Load l = result.get(0);
-        assertEquals("L-100", l.getId());
-        assertEquals("ACME", l.getReferenceNo());
-        assertEquals("Delivered", l.getStatus());
+        Load load = result.get(0);
+        assertEquals("L-100", load.getId());
+        assertEquals(CUSTOMER_ACME, load.getReferenceNo());
+        assertEquals(STATUS_DELIVERED, load.getStatus());
     }
 
     @Test
-    void test_searchLoads_by_id_returns_empty_when_not_found() {
-        when(repo.findById("missing")).thenReturn(Optional.empty());
+    @DisplayName("searchLoads() - Field 'id' returns empty list when not found")
+    void test_searchLoads_whenFieldId_notFound_returnsEmptyList() {
+        when(loadRepository.findById("missing")).thenReturn(Optional.empty());
 
-        List<Load> result = service.searchLoads("missing", "id");
+        List<Load> result = loadService.searchLoads("missing", "id");
 
         assertTrue(result.isEmpty());
     }
 
     @Test
-    void test_searchLoads_by_customer_uses_repository_and_maps_results() {
-        LoadEntity e1 = new LoadEntity();
-        e1.setId("L-1");
-        e1.setReferenceNo("ACME Logistics");
-        e1.setStatus("Requested");
+    @DisplayName("searchLoads() - Field 'customer' uses repository and maps results")
+    void test_searchLoads_whenFieldCustomer_usesRepositoryAndMapsResults() {
+        LoadEntity first = createLoadEntity("L-1", "ACME Logistics", STATUS_REQUESTED, "10.00");
+        LoadEntity second = createLoadEntity("L-2", "Acme Corp", STATUS_DELIVERED, "20.00");
+        when(loadRepository.findByReferenceNoContainingIgnoreCase("acme"))
+                .thenReturn(List.of(first, second));
 
-        LoadEntity e2 = new LoadEntity();
-        e2.setId("L-2");
-        e2.setReferenceNo("Acme Corp");
-        e2.setStatus("Delivered");
-
-        when(repo.findByReferenceNoContainingIgnoreCase("acme"))
-                .thenReturn(List.of(e1, e2));
-
-        List<Load> result = service.searchLoads("acme", "customer");
+        List<Load> result = loadService.searchLoads("acme", "customer");
 
         assertEquals(2, result.size());
         assertEquals("L-1", result.get(0).getId());
         assertEquals("L-2", result.get(1).getId());
-        verify(repo).findByReferenceNoContainingIgnoreCase("acme");
+        verify(loadRepository).findByReferenceNoContainingIgnoreCase("acme");
     }
 
     @Test
-    void test_searchLoads_by_status_uses_repository_and_maps_results() {
-        LoadEntity e1 = new LoadEntity();
-        e1.setId("L-1");
-        e1.setReferenceNo("ACME");
-        e1.setStatus("Delivered");
+    @DisplayName("searchLoads() - Field 'status' uses repository and maps results")
+    void test_searchLoads_whenFieldStatus_usesRepositoryAndMapsResults() {
+        LoadEntity first = createLoadEntity("L-1", CUSTOMER_ACME, STATUS_DELIVERED, "1.00");
+        LoadEntity second = createLoadEntity("L-2", "BETA", STATUS_DELIVERED, "2.00");
+        when(loadRepository.findByStatusIgnoreCase(STATUS_DELIVERED))
+                .thenReturn(List.of(first, second));
 
-        LoadEntity e2 = new LoadEntity();
-        e2.setId("L-2");
-        e2.setReferenceNo("BETA");
-        e2.setStatus("Delivered");
-
-        when(repo.findByStatusIgnoreCase("Delivered"))
-                .thenReturn(List.of(e1, e2));
-
-        List<Load> result = service.searchLoads("Delivered", "status");
+        List<Load> result = loadService.searchLoads(STATUS_DELIVERED, "status");
 
         assertEquals(2, result.size());
         assertEquals("L-1", result.get(0).getId());
         assertEquals("L-2", result.get(1).getId());
-        verify(repo).findByStatusIgnoreCase("Delivered");
+        verify(loadRepository).findByStatusIgnoreCase(STATUS_DELIVERED);
     }
 
     @Test
-    void test_searchLoads_with_unknown_field_searches_all_and_deduplicates() {
-        LoadEntity byId = new LoadEntity();
-        byId.setId("L-1");
-        byId.setReferenceNo("ACME");
-        byId.setStatus("Requested");
+    @DisplayName("searchLoads() - Uppercase field name is normalized")
+    void test_searchLoads_whenFieldUsesUppercase_isNormalizedToLowercase() {
+        LoadEntity first = createLoadEntity("L-1", CUSTOMER_ACME, STATUS_DELIVERED, "1.00");
+        when(loadRepository.findByStatusIgnoreCase(STATUS_DELIVERED))
+                .thenReturn(List.of(first));
 
-        LoadEntity byCustomer = new LoadEntity();
-        byCustomer.setId("L-1");
-        byCustomer.setReferenceNo("ACME Logistics");
-        byCustomer.setStatus("Requested");
+        List<Load> result = loadService.searchLoads(STATUS_DELIVERED, "STATUS");
 
-        LoadEntity byStatus = new LoadEntity();
-        byStatus.setId("L-2");
-        byStatus.setReferenceNo("Other");
-        byStatus.setStatus("Requested");
+        assertEquals(1, result.size());
+        verify(loadRepository).findByStatusIgnoreCase(STATUS_DELIVERED);
+    }
 
-        when(repo.findById("L-1")).thenReturn(Optional.of(byId));
-        when(repo.findByReferenceNoContainingIgnoreCase("L-1"))
-                .thenReturn(List.of(byCustomer));
-        when(repo.findByStatusIgnoreCase("L-1")).thenReturn(List.of(byStatus));
+    @Test
+    @DisplayName("searchLoads() - Unknown field searches across all fields and deduplicates")
+    void test_searchLoads_whenFieldUnknown_searchesAllFieldsAndDeduplicates() {
+        LoadEntity fromId = createLoadEntity("L-1", CUSTOMER_ACME, STATUS_REQUESTED, "1.00");
+        LoadEntity fromCustomer = createLoadEntity("L-1", "ACME Logistics", STATUS_REQUESTED, "1.00");
+        LoadEntity fromStatus = createLoadEntity("L-2", "Other", STATUS_REQUESTED, "1.00");
 
-        List<Load> result = service.searchLoads("L-1", "weird-field");
+        when(loadRepository.findById("L-1")).thenReturn(Optional.of(fromId));
+        when(loadRepository.findByReferenceNoContainingIgnoreCase("L-1"))
+                .thenReturn(List.of(fromCustomer));
+        when(loadRepository.findByStatusIgnoreCase("L-1"))
+                .thenReturn(List.of(fromStatus));
 
-        // Expect 2 unique IDs: L-1 and L-2
+        List<Load> result = loadService.searchLoads("L-1", "weird-field");
+
         assertEquals(2, result.size());
         assertEquals("L-1", result.get(0).getId());
         assertEquals("L-2", result.get(1).getId());
+    }
+
+    // ---------------------------------------------------------------------
+    // Test helpers
+    // ---------------------------------------------------------------------
+
+    private LoadEntity createLoadEntity(String id,
+                                        String referenceNo,
+                                        String status,
+                                        String rateAmount) {
+        LoadEntity entity = new LoadEntity();
+        entity.setId(id);
+        entity.setReferenceNo(referenceNo);
+        entity.setStatus(status);
+        entity.setRateAmount(new BigDecimal(rateAmount));
+        return entity;
+    }
+
+    private Load createDomainLoad(String id,
+                                  String referenceNo,
+                                  String status,
+                                  float rateAmount) {
+        return new Load(
+                id, referenceNo, status, rateAmount,
+                null, null, null, null,
+                null, null, null, null
+        );
     }
 }

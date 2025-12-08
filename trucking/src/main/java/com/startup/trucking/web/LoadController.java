@@ -1,9 +1,9 @@
 package com.startup.trucking.web;
 
-import com.startup.trucking.persistence.Document;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.domain.LoadBuilder;
 import com.startup.trucking.notify.ChannelType;
+import com.startup.trucking.persistence.Document;
 import com.startup.trucking.persistence.Invoice;
 import com.startup.trucking.service.DocumentService;
 import com.startup.trucking.service.InvoiceService;
@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,94 +23,76 @@ import java.util.stream.Collectors;
 @Controller
 @RequestMapping("/loads")
 public class LoadController {
-    private final LoadService loads;
-    private final DocumentService docs;
-    private final InvoiceService invoices;
+
+    private static final String VIEW_LOAD_LIST = "loads";
+    private static final String VIEW_LOAD_DETAIL = "load-detail";
+    private static final String DEFAULT_SORT = "";
+
+    private final LoadService loadService;
+    private final DocumentService documentService;
+    private final InvoiceService invoiceService;
     private final NotificationService notificationService;
 
-    public LoadController(LoadService loads, DocumentService docs, InvoiceService invoices, NotificationService notificationService) {
-        this.loads = loads;
-        this.docs = docs;
-        this.invoices = invoices;
+    public LoadController(LoadService loadService,
+                          DocumentService documentService,
+                          InvoiceService invoiceService,
+                          NotificationService notificationService) {
+        this.loadService = loadService;
+        this.documentService = documentService;
+        this.invoiceService = invoiceService;
         this.notificationService = notificationService;
     }
 
     @GetMapping
-    public String loads(@RequestParam(name = "sort", required = false) String sortKey,
-                        Model model) {
+    public String listLoads(@RequestParam(name = "sort", required = false) String sortKey,
+                            Model model) {
 
-        Map<String, Invoice> invoiceByLoadId = invoices.list().stream()
-                .collect(Collectors.toMap(Invoice::getLoadId, i -> i, (a, b) -> a));
+        Map<String, Invoice> invoicesByLoadId = groupInvoicesByLoadId();
 
-        var loadList = loads.listLoadsSorted(sortKey);
-
-        List<LoadRow> rows = new ArrayList<>();
-        for (Load l : loadList) {
-            String customerName = l.getReferenceNo() != null ? l.getReferenceNo() : "";
-            String driver = l.getDriverId() != null ? l.getDriverId() : "";
-
-            String docUrl = null;
-            List<Document> docList = docs.list(l.getId());
-            if (!docList.isEmpty() && docList.get(0).downloadUri() != null) {
-                docUrl = docList.get(0).downloadUri().toString();
-            }
-
-            Invoice inv = invoiceByLoadId.get(l.getId());
-            boolean invoiced = inv != null;
-            String invoiceId = invoiced ? inv.getId() : null;
-
-            rows.add(new LoadRow(
-                    l.getId(),
-                    customerName,
-                    l.getStatus(),
-                    l.getRateAmount(),
-                    driver,
-                    l.getPickupAddress(),
-                    l.getDeliveryAddress(),
-                    l.getPickupDate(),
-                    l.getDeliveryDate(),
-                    docUrl,
-                    invoiced,
-                    invoiceId
-            ));
-        }
+        List<Load> loads = loadService.listLoadsSorted(sortKey);
+        List<LoadRow> rows = loads.stream()
+                .map(load -> toLoadRow(load, invoicesByLoadId))
+                .toList();
 
         model.addAttribute("rows", rows);
-        model.addAttribute("currentSort", sortKey == null ? "" : sortKey);
+        model.addAttribute("currentSort", sortKey == null ? DEFAULT_SORT : sortKey);
 
-        return "loads"; // templates/loads.html
+        return VIEW_LOAD_LIST;
     }
 
-
     @GetMapping("/{id}")
-    public String detail(@PathVariable String id, Model model,
-                         @ModelAttribute("toast") String toast) {
-        Load l = loads.getLoad(id);
-        model.addAttribute("load", l);
-        model.addAttribute("documents", docs.list(id));
-        return "load-detail"; // templates/load-detail.html
+    public String loadDetail(@PathVariable String id,
+                             Model model,
+                             @ModelAttribute("toast") String toast) {
+
+        Load load = loadService.getLoad(id);
+        model.addAttribute("load", load);
+        model.addAttribute("documents", documentService.list(id));
+        return VIEW_LOAD_DETAIL;
     }
 
     @PostMapping("/{id}/dispatch")
-    public String dispatch(@PathVariable String id, RedirectAttributes ra) {
-        loads.updateStatus(id, "Dispatched");
-        ra.addFlashAttribute("toast", "Load " + id + " dispatched.");
+    public String dispatchLoad(@PathVariable String id,
+                               RedirectAttributes redirectAttributes) {
+        loadService.updateStatus(id, "Dispatched");
+        redirectAttributes.addFlashAttribute("toast", "Load " + id + " dispatched.");
         return "redirect:/loads";
     }
 
     @PostMapping("/{id}/deliver")
-    public String deliver(@PathVariable String id, RedirectAttributes ra) {
-        loads.updateStatus(id, "Delivered");
-        ra.addFlashAttribute("toast", "Load " + id + " marked Delivered.");
+    public String deliverLoad(@PathVariable String id,
+                              RedirectAttributes redirectAttributes) {
+        loadService.updateStatus(id, "Delivered");
+        redirectAttributes.addFlashAttribute("toast", "Load " + id + " marked Delivered.");
         return "redirect:/loads";
     }
 
     @PostMapping("/{id}/status")
     public String changeStatus(@PathVariable String id,
                                @RequestParam String status,
-                               RedirectAttributes ra) {
-        loads.updateStatus(id, status);
-        ra.addFlashAttribute("toast", "Status → " + status);
+                               RedirectAttributes redirectAttributes) {
+        loadService.updateStatus(id, status);
+        redirectAttributes.addFlashAttribute("toast", "Status → " + status);
         return "redirect:/loads/" + id;
     }
 
@@ -119,37 +100,40 @@ public class LoadController {
     public String notifyCustomer(@PathVariable String id,
                                  @RequestParam(value = "channel", required = false) String channel,
                                  @RequestParam(value = "recipient", required = false) String recipient,
-                                 RedirectAttributes ra) {
-        // If no recipient or no channel is provided, do nothing and toast
-        if (recipient == null || recipient.isBlank() || channel == null || channel.isBlank()) {
-            ra.addFlashAttribute("toast", "Notification skipped (channel/recipient missing).");
+                                 RedirectAttributes redirectAttributes) {
+        if (isBlank(channel) || isBlank(recipient)) {
+            redirectAttributes.addFlashAttribute(
+                    "toast",
+                    "Notification skipped (channel/recipient missing)."
+            );
             return "redirect:/loads/" + id;
         }
 
-        var load = loads.getLoad(id);
+        Load load = loadService.getLoad(id);
 
         try {
+            ChannelType channelType = ChannelType.valueOf(channel);
             notificationService.sendLoadConfirmed(
-                    ChannelType.valueOf(channel),
+                    channelType,
                     recipient,
                     load.getReferenceNo(),
                     load.getId()
             );
-            ra.addFlashAttribute("toast", "Customer notified: Load Confirmed.");
+            redirectAttributes.addFlashAttribute("toast", "Customer notified: Load Confirmed.");
         } catch (IllegalArgumentException ex) {
-            ra.addFlashAttribute("toast", "Notification failed: " + ex.getMessage());
+            redirectAttributes.addFlashAttribute("toast", "Notification failed: " + ex.getMessage());
         }
 
         return "redirect:/loads/" + id;
     }
 
     @PostMapping("/{id}/documents/upload")
-    public String uploadDoc(@PathVariable String id,
-                            @RequestParam String type,  // BOL or POD
-                            @RequestParam String url,
-                            RedirectAttributes ra) {
-        docs.upload(id, type, URI.create(url));
-        ra.addFlashAttribute("toast", type + " uploaded.");
+    public String uploadDocument(@PathVariable String id,
+                                 @RequestParam String type,
+                                 @RequestParam String url,
+                                 RedirectAttributes redirectAttributes) {
+        documentService.upload(id, type, URI.create(url));
+        redirectAttributes.addFlashAttribute("toast", type + " uploaded.");
         return "redirect:/loads/" + id;
     }
 
@@ -160,15 +144,15 @@ public class LoadController {
     }
 
     @PostMapping
-    public String create(@ModelAttribute("form") BookingForm form, RedirectAttributes ra) {
-        String id = (form.getId() == null || form.getId().isBlank())
-                ? "L-" + UUID.randomUUID()
-                : form.getId();
+    public String createLoad(@ModelAttribute("form") BookingForm form,
+                             RedirectAttributes redirectAttributes) {
+        String id = resolveLoadId(form);
+        String status = resolveStatus(form.getStatus());
 
         Load load = new LoadBuilder()
                 .setId(id)
                 .setReferenceNo(form.getReferenceNo())
-                .setStatus(form.getStatus() == null || form.getStatus().isBlank() ? "Requested" : form.getStatus())
+                .setStatus(status)
                 .setRateAmount(form.getRateAmount())
                 .setTrackingId(form.getTrackingId())
                 .setRateConfirmationRef(form.getRateConfirmationRef())
@@ -180,8 +164,78 @@ public class LoadController {
                 .setDeliveryDate(form.getDeliveryDate())
                 .createLoad();
 
-        loads.putLoad(load);
-        ra.addFlashAttribute("toast", "Load " + id + " created.");
+        loadService.putLoad(load);
+        redirectAttributes.addFlashAttribute("toast", "Load " + id + " created.");
         return "redirect:/loads";
+    }
+
+    // ---------------------------------------------------------------------
+    // Helper methods
+    // ---------------------------------------------------------------------
+
+    private Map<String, Invoice> groupInvoicesByLoadId() {
+        return invoiceService.list().stream()
+                .collect(Collectors.toMap(
+                        Invoice::getLoadId,
+                        invoice -> invoice,
+                        (existing, duplicate) -> existing
+                ));
+    }
+
+    private LoadRow toLoadRow(Load load, Map<String, Invoice> invoicesByLoadId) {
+        String customerName = defaultString(load.getReferenceNo());
+        String driver = defaultString(load.getDriverId());
+        String documentUrl = resolveDocumentUrl(load.getId());
+
+        Invoice invoice = invoicesByLoadId.get(load.getId());
+        boolean invoiced = invoice != null;
+        String invoiceId = invoiced ? invoice.getId() : null;
+
+        return new LoadRow(
+                load.getId(),
+                customerName,
+                load.getStatus(),
+                load.getRateAmount(),
+                driver,
+                load.getPickupAddress(),
+                load.getDeliveryAddress(),
+                load.getPickupDate(),
+                load.getDeliveryDate(),
+                documentUrl,
+                invoiced,
+                invoiceId
+        );
+    }
+
+    private String resolveDocumentUrl(String loadId) {
+        List<Document> documents = documentService.list(loadId);
+        if (documents.isEmpty()) {
+            return null;
+        }
+
+        URI downloadUri = documents.get(0).downloadUri();
+        return downloadUri != null ? downloadUri.toString() : null;
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String resolveLoadId(BookingForm form) {
+        if (form.getId() == null || form.getId().isBlank()) {
+            return "L-" + UUID.randomUUID();
+        }
+        return form.getId();
+    }
+
+    private String resolveStatus(String rawStatus) {
+        if (rawStatus == null || rawStatus.isBlank()) {
+            return "Requested";
+        }
+        return rawStatus;
     }
 }

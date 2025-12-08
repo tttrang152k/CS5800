@@ -16,8 +16,8 @@ public class PaymentGatewayRegistry {
     }
 
     public PaymentGateway resolve(PaymentMethod method) {
-        PaymentGateway gw = map.get(method);
-        if (gw == null) throw new IllegalArgumentException("Unsupported method: " + method);
-        return gw;
+        PaymentGateway gateway = map.get(method);
+        if (gateway == null) throw new IllegalArgumentException("Unsupported method: " + method);
+        return gateway;
     }
 }

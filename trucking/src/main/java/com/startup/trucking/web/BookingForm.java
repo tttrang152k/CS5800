@@ -2,15 +2,13 @@ package com.startup.trucking.web;
 
 public class BookingForm {
     private String id;
-    private String referenceNo;       // customer/broker name or id
+    private String referenceNo;
     private String status = "Requested";
     private float rateAmount;
     private String trackingId;
     private String rateConfirmationRef;
-
     private String driverId;
     private String trailerId;
-
     private String pickupAddress;
     private String deliveryAddress;
     private String pickupDate;

@@ -3,8 +3,9 @@ package com.startup.trucking.web;
 import com.startup.trucking.domain.Load;
 import com.startup.trucking.service.LoadService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ui.ConcurrentModel;
 import org.springframework.ui.Model;
@@ -15,31 +16,40 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("Search Controller Unit Tests")
 class SearchControllerTest {
 
+    private static final String QUERY_ACME = "ACME";
+    private static final String FIELD_CUSTOMER = "customer";
+
     @Mock
-    LoadService loads;
+    LoadService loadService;
 
     @Test
-    void test_searchLoads_populates_model_and_returns_view() {
-        SearchController ctl = new SearchController(loads);
+    @DisplayName("searchLoads() - Populates model and returns search view")
+    void test_searchLoads_whenQueryAndFieldProvided_populatesModelAndReturnsView() {
+        SearchController controller = new SearchController(loadService);
 
-        String query = "ACME";
-        String field = "customer";
+        Load first = new Load(
+                "L-1", "ACME", "Requested", 100f,
+                null, null, null, null,
+                null, null, null, null
+        );
+        Load second = new Load(
+                "L-2", "ACME", "Delivered", 200f,
+                null, null, null, null,
+                null, null, null, null
+        );
 
-        Load l1 = new Load("L-1", "ACME", "Requested", 100f,
-                null, null, null, null, null, null, null, null);
-        Load l2 = new Load("L-2", "ACME", "Delivered", 200f,
-                null, null, null, null, null, null, null, null);
-
-        when(loads.searchLoads(query, field)).thenReturn(List.of(l1, l2));
+        when(loadService.searchLoads(QUERY_ACME, FIELD_CUSTOMER))
+                .thenReturn(List.of(first, second));
 
         Model model = new ConcurrentModel();
-        String view = ctl.searchLoads(query, field, model);
+        String viewName = controller.searchLoads(QUERY_ACME, FIELD_CUSTOMER, model);
 
-        assertEquals("load-search", view);
-        assertEquals(query, model.getAttribute("query"));
-        assertEquals(field, model.getAttribute("field"));
+        assertEquals("load-search", viewName);
+        assertEquals(QUERY_ACME, model.getAttribute("query"));
+        assertEquals(FIELD_CUSTOMER, model.getAttribute("field"));
 
         @SuppressWarnings("unchecked")
         List<Load> results = (List<Load>) model.getAttribute("results");
@@ -48,19 +58,19 @@ class SearchControllerTest {
         assertEquals("L-1", results.get(0).getId());
         assertEquals("L-2", results.get(1).getId());
 
-        verify(loads).searchLoads(query, field);
+        verify(loadService).searchLoads(QUERY_ACME, FIELD_CUSTOMER);
     }
 
     @Test
-    void test_searchLoads_handles_null_query() {
-        SearchController ctl = new SearchController(loads);
-
-        when(loads.searchLoads(null, "id")).thenReturn(List.of());
+    @DisplayName("searchLoads() - Handles null query gracefully")
+    void test_searchLoads_whenQueryNull_usesServiceAndReturnsEmptyResults() {
+        SearchController controller = new SearchController(loadService);
+        when(loadService.searchLoads(null, "id")).thenReturn(List.of());
 
         Model model = new ConcurrentModel();
-        String view = ctl.searchLoads(null, "id", model);
+        String viewName = controller.searchLoads(null, "id", model);
 
-        assertEquals("load-search", view);
+        assertEquals("load-search", viewName);
         assertNull(model.getAttribute("query"));
         assertEquals("id", model.getAttribute("field"));
 
@@ -69,6 +79,6 @@ class SearchControllerTest {
         assertNotNull(results);
         assertTrue(results.isEmpty());
 
-        verify(loads).searchLoads(null, "id");
+        verify(loadService).searchLoads(null, "id");
     }
 }
