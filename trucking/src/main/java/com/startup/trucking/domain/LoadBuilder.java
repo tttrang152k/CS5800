@@ -1,13 +1,15 @@
 package com.startup.trucking.domain;
 
 public class LoadBuilder {
+
+    private static final String DEFAULT_STATUS = "Requested";
+
     private String id;
     private String referenceNo;
-    private String status = "Requested";
+    private String status = DEFAULT_STATUS;
     private float rateAmount;
     private String trackingId;
 
-    // collapsed details
     private String rateConfirmationRef;
     private String driverId;
     private String trailerId;
@@ -60,9 +62,18 @@ public class LoadBuilder {
             throw new IllegalArgumentException("id is required");
         }
         return new Load(
-                id, referenceNo, status, rateAmount, trackingId,
-                rateConfirmationRef, driverId, trailerId,
-                pickupAddress, deliveryAddress, pickupDate, deliveryDate
+                        id,
+                        referenceNo,
+                        status,
+                        rateAmount,
+                        trackingId,
+                        rateConfirmationRef,
+                        driverId,
+                        trailerId,
+                        pickupAddress,
+                        deliveryAddress,
+                        pickupDate,
+                        deliveryDate
         );
     }
 }

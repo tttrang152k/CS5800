@@ -1,23 +1,34 @@
 package com.startup.trucking.domain;
 
 public class Load {
+
     private final String id;
-    private String referenceNo;
+    private final String referenceNo;
     private String status;
-    private float rateAmount;
-    private String trackingId;
+    private final float rateAmount;
+    private final String trackingId;
 
-    // collapsed details
-    private String rateConfirmationRef;
-    private String driverId;
-    private String trailerId;
-    private String pickupAddress;
-    private String deliveryAddress;
-    private String pickupDate;
-    private String deliveryDate;
+    private final String rateConfirmationRef;
+    private final String driverId;
+    private final String trailerId;
+    private final String pickupAddress;
+    private final String deliveryAddress;
+    private final String pickupDate;
+    private final String deliveryDate;
 
-    public Load(String id, String referenceNo, String status, float rateAmount, String trackingId, String rateConfirmationRef, String driverId, String trailerId,
-                String pickupAddress, String deliveryAddress, String pickupDate, String deliveryDate) {
+    public Load(String id,
+                String referenceNo,
+                String status,
+                float rateAmount,
+                String trackingId,
+                String rateConfirmationRef,
+                String driverId,
+                String trailerId,
+                String pickupAddress,
+                String deliveryAddress,
+                String pickupDate,
+                String deliveryDate) {
+
         this.id = id;
         this.referenceNo = referenceNo;
         this.status = status;
@@ -32,22 +43,58 @@ public class Load {
         this.deliveryDate = deliveryDate;
     }
 
-    public void updateStatus(String status){
-        this.status = status;
+    public void updateStatus(String newStatus) {
+        if (newStatus == null || newStatus.isBlank()) {
+            throw new IllegalArgumentException("Load status must not be null or blank");
+        }
+        this.status = newStatus;
     }
 
-    // getters
-    public String getId() { return id; }
-    public String getStatus() { return status; }
-    public String getDriverId() { return driverId; }
-    public String getTrailerId() { return trailerId; }
-    public String getReferenceNo() { return referenceNo; }
-    public String getPickupAddress(){ return pickupAddress; }
-    public String getDeliveryAddress(){ return deliveryAddress; }
-    public String getPickupDate(){ return pickupDate; }
-    public String getDeliveryDate(){ return deliveryDate; }
-    public float getRateAmount(){ return rateAmount; }
-    public String getTrackingId(){ return trackingId; }
-    public String getRateConfirmationRef(){ return rateConfirmationRef; }
-}
+    public String getId() {
+        return id;
+    }
 
+    public String getReferenceNo() {
+        return referenceNo;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public float getRateAmount() {
+        return rateAmount;
+    }
+
+    public String getTrackingId() {
+        return trackingId;
+    }
+
+    public String getRateConfirmationRef() {
+        return rateConfirmationRef;
+    }
+
+    public String getDriverId() {
+        return driverId;
+    }
+
+    public String getTrailerId() {
+        return trailerId;
+    }
+
+    public String getPickupAddress() {
+        return pickupAddress;
+    }
+
+    public String getDeliveryAddress() {
+        return deliveryAddress;
+    }
+
+    public String getPickupDate() {
+        return pickupDate;
+    }
+
+    public String getDeliveryDate() {
+        return deliveryDate;
+    }
+}
