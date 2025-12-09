@@ -1,7 +1,9 @@
 package com.startup.trucking.notify;
 
 public class PaymentReceivedEvent extends NotificationEvent {
-    private final String invoiceId; private final String amount; private final String method;
+    private final String invoiceId;
+    private final String amount;
+    private final String method;
     public PaymentReceivedEvent(NotificationChannel channel, String to, String customerRef,
                                 String invoiceId, String amount, String method) {
         super(channel, to, customerRef);
